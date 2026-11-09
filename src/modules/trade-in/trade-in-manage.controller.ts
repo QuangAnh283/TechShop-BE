@@ -40,10 +40,11 @@ export class TradeInManageController {
     return this.tradeInService.createQuestion(dto);
   }
 
+  /** Ngừng dùng câu hỏi (đặt isActive=false). KHÔNG xoá cứng — xem deactivateQuestion. */
   @Delete('questions/:id')
   @RequirePermissions(PERM.TRADEIN_CONFIG)
-  deleteQuestion(@Param('id') id: string) {
-    return this.tradeInService.deleteQuestion(id);
+  deactivateQuestion(@Param('id') id: string) {
+    return this.tradeInService.deactivateQuestion(id);
   }
 
   @Put('rules')

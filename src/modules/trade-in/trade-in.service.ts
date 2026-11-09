@@ -123,9 +123,25 @@ export class TradeInService {
     });
   }
 
-  async deleteQuestion(id: string) {
-    await this.prisma.tradeInQuestion.delete({ where: { id } });
-    return { message: 'Đã xóa câu hỏi' };
+  /**
+   * NGỪNG dùng một câu hỏi — đặt `isActive = false`, KHÔNG xoá cứng.
+   *
+   * Xoá cứng luôn thất bại ngay khi có khách trả lời: khoá ngoại
+   * `TradeInAnswer.questionId` và `TradeInAnswer.optionId` đều là **RESTRICT**.
+   * Mà kể cả xoá được cũng không nên: các yêu cầu thu cũ cũ sẽ mất sạch phần
+   * "tình trạng khách đã khai", tức mất luôn căn cứ của giá đã báo.
+   *
+   * Câu hỏi đã tắt không còn hiện cho khách (`listQuestions` lọc `isActive`),
+   * nhưng yêu cầu cũ vẫn đọc được đầy đủ.
+   */
+  async deactivateQuestion(id: string) {
+    const question = await this.prisma.tradeInQuestion.findUnique({ where: { id } });
+    if (!question) throw new NotFoundException('Không tìm thấy câu hỏi');
+    if (!question.isActive) {
+      return { message: 'Câu hỏi đã ngừng sử dụng từ trước' };
+    }
+    await this.prisma.tradeInQuestion.update({ where: { id }, data: { isActive: false } });
+    return { message: 'Đã ngừng sử dụng câu hỏi' };
   }
 
   // ================= Rules (PART 10.2) =================
