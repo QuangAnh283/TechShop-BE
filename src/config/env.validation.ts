@@ -11,6 +11,8 @@ export const validationSchema = Joi.object({
   JWT_REFRESH_EXPIRES: Joi.string().default('7d'),
   UPLOADS_DIR: Joi.string().default('uploads'),
   APP_URL: Joi.string().default('http://localhost:3001'),
+  // URL frontend — dùng dựng link xác thực email (auth.service) và VNPay return.
+  FRONTEND_URL: Joi.string().default('http://localhost:3002'),
   CORS_ORIGIN: Joi.string().allow('').default(''),
   ORDER_PENDING_TTL_MINUTES: Joi.number().default(30),
   SHIPPING_FEE: Joi.number().default(30000),
@@ -25,10 +27,6 @@ export const validationSchema = Joi.object({
   VNPAY_HASH_SECRET: Joi.string().default('DEMOSECRET'),
   VNPAY_URL: Joi.string().default('https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'),
   VNPAY_RETURN_URL: Joi.string().default('http://localhost:3001/api/v1/payments/vnpay/return'),
-  // Redis (cache + session)
-  REDIS_HOST: Joi.string().default('localhost'),
-  REDIS_PORT: Joi.number().default(6379),
-  REDIS_PASSWORD: Joi.string().allow('').default(''),
   // Media upload (local disk)
   MEDIA_MAX_SIZE_MB: Joi.number().default(5),
 });

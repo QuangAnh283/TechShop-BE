@@ -35,7 +35,14 @@ export class DevicesService {
     if (query.productId) where.productId = query.productId;
     if (query.status) where.status = query.status;
     if (query.condition) where.condition = query.condition;
-    if (query.search) where.serialImei = { contains: query.search, mode: 'insensitive' };
+    // Tìm theo Serial/IMEI HOẶC tên sản phẩm — nhân viên kho thường nhớ tên máy
+    // ("iPhone 13") hơn là dãy serial.
+    if (query.search) {
+      where.OR = [
+        { serialImei: { contains: query.search, mode: 'insensitive' } },
+        { product: { name: { contains: query.search, mode: 'insensitive' } } },
+      ];
+    }
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.device.findMany({

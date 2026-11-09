@@ -1,18 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { OrderStatus, TradeInStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { RedisService } from '../../redis/redis.service';
+import { CacheService } from '../../cache/cache.service';
 
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
+    private readonly cache: CacheService,
   ) {}
 
   /** PART 11.1 — số liệu tổng quan cho dashboard (cache ngắn 30s). */
   async dashboard() {
-    return this.redis.withCache('cache:admin:dashboard', 30, () => this.dashboardUncached());
+    return this.cache.withCache('cache:admin:dashboard', 30, () => this.dashboardUncached());
   }
 
   private async dashboardUncached() {

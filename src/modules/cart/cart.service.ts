@@ -55,7 +55,14 @@ export class CartService {
     }));
     const subtotal = items.reduce((sum, it) => sum + it.device.sellingPrice, 0);
     const shippingFee = items.length ? this.shippingFeeFor(subtotal) : 0;
-    return { id: cart.id, items, subtotal, shippingFee, total: subtotal + shippingFee, count: items.length };
+    return {
+      id: cart.id,
+      items,
+      subtotal,
+      shippingFee,
+      total: subtotal + shippingFee,
+      count: items.length,
+    };
   }
 
   async addItem(userId: string, deviceId: string) {

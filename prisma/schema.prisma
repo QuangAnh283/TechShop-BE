@@ -75,9 +75,13 @@ enum PaymentProvider {
   COD
 }
 
+/// Vòng đời thu cũ. Khách KHÔNG gửi máy đi trước — máy chỉ được mang tới cơ sở
+/// SAU khi hai bên chốt giá, nên không có trạng thái "đã nhận máy".
+///   PENDING   → OFFERED (KTV báo giá lại) → ACCEPTED (khách đồng ý) → COMPLETED
+///   PENDING   → ACCEPTED (KTV đồng ý luôn giá ước tính, không báo giá lại)
+///   nhánh hỏng: SHOP_REJECTED (cửa hàng từ chối thu) / CUSTOMER_DECLINED (khách chê giá)
 enum TradeInStatus {
   PENDING
-  RECEIVED
   OFFERED
   ACCEPTED
   COMPLETED
@@ -153,6 +157,10 @@ model Address {
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  // Xoá MỀM. Order.addressId là FK với ON DELETE SET NULL, nên xoá cứng một địa chỉ sẽ
+  // xoá luôn nơi giao của MỌI đơn cũ trỏ tới nó — đơn hàng mất lịch sử giao hàng.
+  // Xoá mềm: địa chỉ biến khỏi sổ địa chỉ của khách, nhưng đơn cũ vẫn đọc được.
+  deletedAt DateTime?
 
   orders Order[]
 
@@ -328,7 +336,8 @@ model Device {
   repairs       RepairHistory[]
   inventoryTxns InventoryTxn[]
   cartItems     CartItem[]
-  orderItem     OrderItem?
+  // Nhiều: máy có thể nằm trong một đơn đã huỷ rồi được bán lại ở đơn khác.
+  orderItems    OrderItem[]
 
   @@index([productId])
   @@index([status])
@@ -427,7 +436,12 @@ model OrderItem {
   id           String  @id @default(cuid())
   orderId      String
   order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  deviceId     String  @unique // 1 device chỉ bán 1 lần (chống bán trùng)
+  // KHÔNG đặt @unique ở đây. Ràng buộc unique là VĨNH VIỄN và TOÀN CỤC, trong khi huỷ đơn
+  // lại trả máy về IN_STOCK để bán tiếp -> máy hiện bán được nhưng vừa đặt là vỡ P2002
+  // ("vi phạm ràng buộc duy nhất"). Chống bán trùng đã được bảo đảm ở tầng giao dịch:
+  // `orders.createFromCart` khoá dòng Device bằng SELECT ... FOR UPDATE rồi kiểm status
+  // phải là IN_STOCK — hai người mua song song thì người sau thấy RESERVED và bị từ chối.
+  deviceId     String
   device       Device  @relation(fields: [deviceId], references: [id])
   productId    String
   product      Product @relation(fields: [productId], references: [id])
@@ -435,6 +449,7 @@ model OrderItem {
   nameSnapshot String // chốt tên sản phẩm tại thời điểm mua
 
   @@index([orderId])
+  @@index([deviceId])
 }
 
 model Payment {
@@ -525,10 +540,6 @@ model TradeInRequest {
   assignedTechnicianId String?
   assignedTechnician   User?         @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id])
   note                 String?
-  // Mốc thời gian vòng đời: nhận máy về (PENDING→RECEIVED) và trả máy lại cho khách
-  // (khi deal đổ bể sau khi đã nhận). receivedAt != null ⇒ máy từng ở cửa hàng ⇒ cần trả.
-  receivedAt           DateTime?
-  returnedAt           DateTime?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 

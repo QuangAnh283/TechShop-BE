@@ -194,11 +194,15 @@ export const PRESET_GROUPS: {
     id: 'grp_technician',
     code: 'TECHNICIAN',
     name: 'Kỹ thuật viên thu cũ',
-    description: 'Kiểm định máy thu cũ và chốt giá đề nghị; quản lý kho kỹ thuật.',
+    description: 'Xử lý yêu cầu thu cũ từ lúc tiếp nhận tới lúc hoàn tất; quản lý kho kỹ thuật.',
     permissions: [
       PERM.TRADEIN_READ,
       PERM.TRADEIN_ASSIGN,
       PERM.TRADEIN_INSPECT,
+      // KTV là người chốt cả hai đầu của luồng thu cũ: chấp nhận yêu cầu (PENDING→ACCEPTED,
+      // kể cả khi giữ nguyên giá ước tính) và đánh dấu hoàn tất sau khi giao dịch trực tiếp
+      // xong. Thiếu quyền này thì KTV kiểm định xong là tắc, phải chờ admin.
+      PERM.TRADEIN_COMPLETE,
       PERM.INVENTORY_READ,
       PERM.INVENTORY_MANAGE,
       PERM.DEVICE_WARRANTY,

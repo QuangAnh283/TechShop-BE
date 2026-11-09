@@ -5,12 +5,8 @@ import { PermissionsService } from './permissions.service';
 describe('PermissionsService.getEffective', () => {
   const build = (dbUser: unknown) => {
     const prisma = { user: { findUnique: jest.fn().mockResolvedValue(dbUser) } };
-    // withCache thật sẽ gọi fn khi cache miss — mock đúng hành vi đó.
-    const redis = {
-      withCache: jest.fn(<T>(_k: string, _t: number, fn: () => Promise<T>) => fn()),
-      del: jest.fn().mockResolvedValue(undefined),
-    };
-    return new PermissionsService(prisma as never, redis as never);
+    // Không còn cache: getEffective đọc thẳng DB mỗi lần gọi.
+    return new PermissionsService(prisma as never);
   };
 
   const base = { id: 'u1', email: 'a@b.com', status: 'ACTIVE', deletedAt: null };

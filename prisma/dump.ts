@@ -55,6 +55,14 @@ const args = [
   '--no-privileges',
   // bỏ qua bảng migration của Prisma (schema do migration tự tạo)
   '--exclude-table=_prisma_migrations',
+  // Bảng phù du: KHÔNG xuất dữ liệu, chỉ xuất cấu trúc (đã có từ migration).
+  // Đây là trạng thái phiên/token sinh ra lúc chạy, không phải dữ liệu demo — trước đây
+  // seed.sql vô tình mang theo 37 dòng RefreshToken cũ, nên khách nào chạy db:seed cũng
+  // nhận một đống session rác đã hết hạn.
+  '--exclude-table-data=public."RefreshToken"',
+  '--exclude-table-data=public."PasswordResetOtp"',
+  '--exclude-table-data=public."EmailVerificationToken"',
+  '--exclude-table-data=public."AuditLog"',
 ];
 
 try {

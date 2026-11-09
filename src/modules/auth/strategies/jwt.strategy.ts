@@ -29,7 +29,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
    * Giá trị trả về được gắn vào request.user.
    *
    * Chỉ dùng `payload.sub` để biết user là AI; còn vai trò và quyền thì đọc tươi
-   * (Redis, miss thì DB). Nhờ vậy khóa tài khoản / đổi vai trò / gỡ quyền có hiệu
+   * (đọc thẳng DB, không cache). Nhờ vậy khóa tài khoản / đổi vai trò / gỡ quyền có hiệu
    * lực ngay trên MỌI route đã đăng nhập, thay vì phải chờ access token hết hạn.
    */
   async validate(payload: JwtPayload): Promise<AuthUser> {

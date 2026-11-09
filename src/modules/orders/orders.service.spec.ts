@@ -92,3 +92,76 @@ describe('OrdersService.expireStaleOrders', () => {
     expect(tx.device.updateMany).toHaveBeenCalled();
   });
 });
+
+/**
+ * Hoàn tiền (vá 2026-11-09).
+ *
+ * Lỗi đã vá: hoàn tiền trả máy về kho VÔ ĐIỀU KIỆN. Với đơn đã DELIVERED, máy đang ở
+ * chỗ khách — nhập kho lúc đó là tạo ra một máy "ma" được rao bán trong khi khách vẫn giữ nó.
+ */
+describe('OrdersService.refund', () => {
+  const makeService = (orderStatus: string) => {
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([{ id: 'p1', status: 'PAID' }]),
+      order: {
+        findUnique: jest.fn().mockResolvedValue({ status: orderStatus }),
+        update: jest.fn().mockResolvedValue({ id: 'o1', status: 'CANCELLED', items: [] }),
+      },
+      orderItem: { findMany: jest.fn().mockResolvedValue([{ deviceId: 'd1' }]) },
+      device: { updateMany: jest.fn().mockResolvedValue({}) },
+      payment: { updateMany: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      order: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'o1',
+          orderNumber: 'OD1',
+          total: 1000,
+          status: orderStatus,
+          payment: { status: 'PAID' },
+        }),
+      },
+      $transaction: jest.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
+    };
+    const config = { get: jest.fn().mockReturnValue(30) };
+    const audit = { log: jest.fn() };
+    return {
+      svc: new OrdersService(prisma as never, config as never, audit as never),
+      tx,
+      audit,
+    };
+  };
+  const admin = { id: 'a1', email: 'a@b.c', role: 'ADMIN', permissions: ['*'] } as never;
+
+  it('đơn CHƯA giao xong -> hoàn kho tự động (hàng còn trong tầm kiểm soát)', async () => {
+    const { svc, tx } = makeService('CONFIRMED');
+    await svc.refund('o1', admin);
+    expect(tx.device.updateMany).toHaveBeenCalled();
+  });
+
+  it('đơn ĐÃ GIAO mà chưa nhận lại hàng -> KHÔNG hoàn kho', async () => {
+    const { svc, tx } = makeService('DELIVERED');
+    await svc.refund('o1', admin);
+    expect(tx.device.updateMany).not.toHaveBeenCalled();
+    expect(tx.payment.updateMany).toHaveBeenCalled(); // tiền vẫn được ghi nhận hoàn
+    expect(tx.order.update).toHaveBeenCalled(); // đơn vẫn được đóng
+  });
+
+  it('đơn ĐÃ GIAO + xác nhận khách trả lại máy -> mới hoàn kho', async () => {
+    const { svc, tx } = makeService('DELIVERED');
+    await svc.refund('o1', admin, { goodsReturned: true });
+    expect(tx.device.updateMany).toHaveBeenCalled();
+  });
+
+  it('audit giữ lại trạng thái TRƯỚC khi hoàn (hủy vs đã giao rồi trả lại)', async () => {
+    const { svc, audit } = makeService('DELIVERED');
+    await svc.refund('o1', admin);
+    expect(audit.log).toHaveBeenCalledWith(
+      admin,
+      'ORDER_REFUND',
+      expect.objectContaining({
+        meta: expect.objectContaining({ from: 'DELIVERED', stockRestored: false }),
+      }),
+    );
+  });
+});

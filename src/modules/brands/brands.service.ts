@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { RedisService } from '../../redis/redis.service';
+import { CacheService } from '../../cache/cache.service';
 import { slugify } from '../../common/utils/slug.util';
 import { MEDIA_SELECT, toUrl } from '../../common/utils/media.util';
 import { CreateBrandDto, UpdateBrandDto } from './dto/brand.dto';
@@ -14,7 +14,7 @@ export class BrandsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
+    private readonly cache: CacheService,
   ) {}
 
   /** Map logoMedia → logoUrl (giữ contract cũ cho FE). */
@@ -31,12 +31,12 @@ export class BrandsService {
       },
       include: { logoMedia: MEDIA_SELECT },
     });
-    await this.redis.del(BrandsService.CACHE_KEY);
+    await this.cache.del(BrandsService.CACHE_KEY);
     return this.mapLogo(created);
   }
 
   findAll() {
-    return this.redis.withCache(BrandsService.CACHE_KEY, BrandsService.TTL, async () => {
+    return this.cache.withCache(BrandsService.CACHE_KEY, BrandsService.TTL, async () => {
       const brands = await this.prisma.brand.findMany({
         orderBy: { name: 'asc' },
         include: { logoMedia: MEDIA_SELECT, _count: { select: { products: true } } },
@@ -61,14 +61,14 @@ export class BrandsService {
       data: { ...dto, slug: dto.slug ? slugify(dto.slug) : undefined },
       include: { logoMedia: MEDIA_SELECT },
     });
-    await this.redis.del(BrandsService.CACHE_KEY);
+    await this.cache.del(BrandsService.CACHE_KEY);
     return this.mapLogo(updated);
   }
 
   async remove(id: string) {
     await this.ensureExists(id);
     await this.prisma.brand.delete({ where: { id } });
-    await this.redis.del(BrandsService.CACHE_KEY);
+    await this.cache.del(BrandsService.CACHE_KEY);
     return { message: 'Đã xóa thương hiệu' };
   }
 

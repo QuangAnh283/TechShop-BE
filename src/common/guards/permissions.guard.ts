@@ -6,7 +6,7 @@ import { Permission } from '../authz/permissions';
 
 /**
  * Kiểm tra quyền chi tiết của user hiện tại. Dùng SAU JwtAuthGuard — JwtStrategy đã
- * nạp sẵn `permissions` tươi từ Redis/DB vào request.user, nên guard này không phải
+ * nạp sẵn `permissions` tươi từ DB vào request.user, nên guard này không phải
  * truy vấn gì thêm.
  */
 @Injectable()

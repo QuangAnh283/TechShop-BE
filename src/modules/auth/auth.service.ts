@@ -7,11 +7,11 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { UserRole, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
-import { RedisService } from '../../redis/redis.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { MailService } from '../mail/mail.service';
 import { UsersService } from '../users/users.service';
@@ -26,7 +26,6 @@ export class AuthService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
     private readonly users: UsersService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
@@ -34,11 +33,7 @@ export class AuthService {
     private readonly permissions: PermissionsService,
   ) {}
 
-  // ---------- Session (refresh-token) lưu trong Redis ----------
-  private refreshKey(userId: string, jti: string): string {
-    return `refresh:${userId}:${jti}`;
-  }
-
+  // ---------- Session (refresh-token) lưu ở bảng RefreshToken trong PostgreSQL ----------
   /** TTL (giây) của refresh-token, suy từ cấu hình JWT_REFRESH_EXPIRES (vd '7d'). */
   private refreshTtlSeconds(): number {
     const refreshExpires = this.config.get<string>('jwt.refreshExpires') ?? '7d';
@@ -51,12 +46,27 @@ export class AuthService {
    *
    * Phải gọi sau khi đổi vai trò, khóa/mở khóa tài khoản hoặc đặt lại mật khẩu —
    * nếu không, người bị khóa/bị hạ quyền vẫn tiếp tục refresh được bằng token cũ.
+   *
+   * Quyền KHÔNG cần invalidate nữa: `PermissionsService.getEffective` đọc thẳng DB mỗi
+   * request, nên đổi vai trò/nhóm có hiệu lực ngay — không còn cache quyền phải dọn.
    */
   async revokeAllSessions(userId: string): Promise<void> {
-    await this.redis.delByPattern(this.refreshKey(userId, '*'));
-    // Xóa luôn ảnh chụp quyền: nếu chỉ thu hồi refresh-token, access token còn hạn
-    // vẫn đọc được quyền cũ trong cache cho tới khi TTL hết.
-    await this.permissions.invalidateUser(userId);
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  /**
+   * Dọn refresh-token đã hết hạn (gồm cả bản đã thu hồi). Mỗi lần đăng nhập hoặc xoay
+   * token sinh thêm một dòng, không dọn thì bảng chỉ phình ra.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async purgeExpiredRefreshTokens(): Promise<void> {
+    const { count } = await this.prisma.refreshToken.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+    if (count > 0) this.logger.log(`Đã dọn ${count} refresh-token hết hạn.`);
   }
 
   // ---------- Register (gửi email xác thực) ----------
@@ -169,14 +179,20 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn');
     }
 
-    const key = this.refreshKey(payload.sub, payload.jti);
-    const exists = await this.redis.raw.exists(key);
-    if (!exists) {
+    // Whitelist: token phải còn trong bảng, chưa bị thu hồi và chưa hết hạn.
+    const tokenHash = this.sha256(refreshToken);
+    const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash } });
+    if (!stored || stored.revokedAt || stored.expiresAt <= new Date()) {
       throw new UnauthorizedException('Refresh token không còn hiệu lực');
     }
 
-    // Rotate: thu hồi token cũ (xoá key), cấp cặp mới.
-    await this.redis.del(key);
+    // Rotate: thu hồi token cũ rồi cấp cặp mới. Ghi có điều kiện `revokedAt: null` để
+    // hai request refresh đồng thời (vd hai tab) chỉ một bên xoay được, bên kia nhận 401.
+    const { count } = await this.prisma.refreshToken.updateMany({
+      where: { id: stored.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (count === 0) throw new UnauthorizedException('Refresh token không còn hiệu lực');
 
     // Đọc lại user từ DB thay vì tin payload: role/status có thể đã đổi SAU khi token
     // được cấp. Nếu tin token cũ, người bị khóa hoặc bị hạ quyền sẽ giữ quyền cũ vô
@@ -192,10 +208,13 @@ export class AuthService {
   // ---------- Logout ----------
   async logout(refreshToken: string) {
     try {
-      const payload = await this.jwt.verifyAsync<{ sub: string; jti: string }>(refreshToken, {
+      await this.jwt.verifyAsync<{ sub: string; jti: string }>(refreshToken, {
         secret: this.config.get<string>('jwt.refreshSecret'),
       });
-      await this.redis.del(this.refreshKey(payload.sub, payload.jti));
+      await this.prisma.refreshToken.updateMany({
+        where: { tokenHash: this.sha256(refreshToken), revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
     } catch {
       /* im lặng: token sai thì coi như đã đăng xuất */
     }
@@ -281,8 +300,15 @@ export class AuthService {
       },
     );
 
-    // Lưu jti vào Redis (TTL = hạn refresh) để quản lý/thu hồi refresh token.
-    await this.redis.set(this.refreshKey(userId, jti), '1', this.refreshTtlSeconds());
+    // Lưu HASH của refresh-token vào DB để quản lý/thu hồi phiên. Lưu hash chứ không lưu
+    // token: kể cả khi bảng bị rò rỉ cũng không ai dựng lại được token để đăng nhập.
+    await this.prisma.refreshToken.create({
+      data: {
+        userId,
+        tokenHash: this.sha256(refreshToken),
+        expiresAt: new Date(Date.now() + this.refreshTtlSeconds() * 1000),
+      },
+    });
 
     return { accessToken, refreshToken };
   }

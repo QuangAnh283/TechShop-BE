@@ -15,24 +15,22 @@ describe('AuthService', () => {
         overrides.create ??
         jest.fn().mockResolvedValue({ id: 'u1', email: 'a@b.com', fullName: 'A' }),
     };
-    const prisma = { emailVerificationToken: { create: jest.fn().mockResolvedValue({}) } };
-    // Session refresh-token nằm trong Redis (từ 2026-10-09) — mock các helper service dùng tới.
-    const redis = {
-      get: jest.fn().mockResolvedValue(null),
-      set: jest.fn().mockResolvedValue(undefined),
-      del: jest.fn().mockResolvedValue(undefined),
-      delByPattern: jest.fn().mockResolvedValue(undefined),
+    // Session refresh-token nằm ở bảng RefreshToken trong PostgreSQL (từ 2026-11-09,
+    // trước đó ở Redis — Redis đã được gỡ khỏi dự án).
+    const prisma = {
+      emailVerificationToken: { create: jest.fn().mockResolvedValue({}) },
+      refreshToken: {
+        create: jest.fn().mockResolvedValue({}),
+        findUnique: jest.fn().mockResolvedValue(null),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
     };
     const jwt = { signAsync: jest.fn(), verifyAsync: jest.fn() };
     const config = { get: jest.fn().mockReturnValue('http://localhost:3001') };
     const mail = { sendVerificationEmail: jest.fn().mockResolvedValue(undefined) };
-    const permissions = {
-      getEffective: jest.fn().mockResolvedValue(null),
-      invalidateUser: jest.fn(),
-    };
+    const permissions = { getEffective: jest.fn().mockResolvedValue(null) };
     const svc = new AuthService(
       prisma as never,
-      redis as never,
       users as never,
       jwt as never,
       config as never,
@@ -88,30 +86,38 @@ describe('AuthService', () => {
 describe('AuthService.refresh', () => {
   const PAYLOAD = { sub: 'u1', email: 'a@b.com', role: 'ADMIN', jti: 'j1' };
 
-  const build = (dbUser: unknown) => {
-    const prisma = { user: { findUnique: jest.fn().mockResolvedValue(dbUser) } };
-    const redis = {
-      raw: { exists: jest.fn().mockResolvedValue(1) },
-      set: jest.fn().mockResolvedValue(undefined),
-      del: jest.fn().mockResolvedValue(undefined),
-      delByPattern: jest.fn().mockResolvedValue(undefined),
+  /** Bản ghi whitelist còn hiệu lực trong bảng RefreshToken. */
+  const validStored = {
+    id: 'rt1',
+    userId: 'u1',
+    revokedAt: null,
+    expiresAt: new Date(Date.now() + 86_400_000),
+  };
+
+  const build = (dbUser: unknown, stored: unknown = validStored) => {
+    const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue(dbUser) },
+      refreshToken: {
+        findUnique: jest.fn().mockResolvedValue(stored),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        create: jest.fn().mockResolvedValue({}),
+      },
     };
     const jwt = {
       verifyAsync: jest.fn().mockResolvedValue(PAYLOAD),
       signAsync: jest.fn().mockResolvedValue('token'),
     };
     const config = { get: jest.fn().mockReturnValue('7d') };
-    const permissions = { invalidateUser: jest.fn().mockResolvedValue(undefined) };
+    const permissions = { getEffective: jest.fn().mockResolvedValue(null) };
     const svc = new AuthService(
       prisma as never,
-      redis as never,
       {} as never,
       jwt as never,
       config as never,
       {} as never,
       permissions as never,
     );
-    return { svc, prisma, redis, jwt };
+    return { svc, prisma, jwt };
   };
 
   const activeUser = {
@@ -137,9 +143,28 @@ describe('AuthService.refresh', () => {
   });
 
   it('tài khoản bị khóa -> 401 và thu hồi sạch mọi phiên', async () => {
-    const { svc, redis } = build({ ...activeUser, status: 'BANNED' });
+    const { svc, prisma } = build({ ...activeUser, status: 'BANNED' });
     await expect(svc.refresh('rt')).rejects.toBeInstanceOf(UnauthorizedException);
-    expect(redis.delByPattern).toHaveBeenCalledWith('refresh:u1:*');
+    // revokeAllSessions: thu hồi mọi refresh-token chưa thu hồi của user đó.
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: 'u1', revokedAt: null } }),
+    );
+  });
+
+  it('token không có trong whitelist -> 401 (không đọc tới user)', async () => {
+    const { svc, prisma } = build(activeUser, null);
+    await expect(svc.refresh('rt')).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('token đã bị thu hồi -> 401 (chống tái dùng token đã xoay)', async () => {
+    const { svc } = build(activeUser, { ...validStored, revokedAt: new Date() });
+    await expect(svc.refresh('rt')).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('token đã hết hạn trong bảng -> 401', async () => {
+    const { svc } = build(activeUser, { ...validStored, expiresAt: new Date(Date.now() - 1000) });
+    await expect(svc.refresh('rt')).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('tài khoản đã xóa mềm -> 401', async () => {

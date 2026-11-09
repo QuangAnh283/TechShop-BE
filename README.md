@@ -1,19 +1,22 @@
 # TechShop Backend
 
 Backend cho **TechShop** — website TMĐT thiết bị điện tử cũ & thu cũ đổi mới.
-Giai đoạn hiện tại: **PHASE 1 — Database** (Prisma schema + migration + seed).
-NestJS sẽ được thêm ở PHASE 2.
+**NestJS 11 + Prisma + PostgreSQL.** Toàn bộ các phase đã hoàn thành — API, phân quyền,
+đơn hàng, thanh toán VNPay, thu cũ đổi mới, nhật ký quản trị.
+
+> Hướng dẫn chạy nhanh toàn dự án (backend + frontend) nằm ở [README.md ở gốc repo](../README.md).
+> File này đi sâu vào backend: kiến trúc, danh sách API, dữ liệu demo.
 
 ## Công nghệ
 - PostgreSQL (native, cổng 5432)
-- Redis (native, cổng 6379) — cache + session refresh-token
+- Cache đọc: trong bộ nhớ tiến trình (`src/cache/cache.service.ts`) — **không dùng Redis**
+- Session refresh-token: bảng `RefreshToken` trong PostgreSQL
 - Prisma ORM
 - TypeScript
 
 ## Yêu cầu
 - Node.js 20+
 - PostgreSQL native (có sẵn `psql`/`pg_dump` trên PATH) — cho `db:seed`/`db:dump`
-- Redis native (Memurai hoặc Redis trên WSL)
 
 ## Dựng database (lần đầu)
 
@@ -29,12 +32,12 @@ cd backend
 cp .env.example .env     # chỉnh DATABASE_URL nếu cần (mặc định cổng 5432)
 npm install
 
-# 3) Tạo schema từ migration
-npx prisma migrate deploy   # hoặc: npx prisma migrate dev
-
-# 4) Nạp dữ liệu demo
-npm run db:seed             # nạp prisma/seed.sql qua psql local
+# 3) Tạo schema + nạp dữ liệu demo (1 lệnh)
+npm run db:setup            # = prisma migrate deploy && npm run db:seed
 ```
+
+`npm install` tự chạy `prisma generate` (script `postinstall`) nên không cần generate tay.
+Muốn làm từng bước: `npx prisma migrate deploy` rồi `npm run db:seed`.
 
 Mở Prisma Studio để xem dữ liệu: `npm run prisma:studio`.
 
@@ -47,7 +50,8 @@ npm run build && npm run start:prod
 ```
 
 - API chạy ở `http://localhost:3001` (cổng 3001 vì 3000 bị service khác chiếm — đổi ở `.env`).
-- Kiểm tra: `GET /` (info) và `GET /health` (xác nhận kết nối DB).
+- Kiểm tra: `GET /api/v1` (info) và `GET /api/v1/health` (xác nhận kết nối DB).
+  ⚠️ Mọi route đều nằm dưới prefix `/api` + version `v1` — gọi `/health` trần sẽ **404**.
 
 ## Tài khoản demo
 | Vai trò | Email | Mật khẩu |
@@ -145,7 +149,7 @@ cần sửa code. Mã quyền khai báo ở `src/common/authz/permissions.ts`; 5
 khởi động (`permissions.bootstrap.ts`, upsert idempotent).
 
 Điểm nhấn kỹ thuật:
-- **Quyền giải tươi mỗi request** (Redis `authz:user:<id>` TTL 300s → DB), **không nhét vào JWT**: khóa
+- **Quyền giải tươi mỗi request** (đọc thẳng DB, không cache), **không nhét vào JWT**: khóa
   tài khoản / đổi vai trò / gỡ quyền có hiệu lực ngay, không phải chờ access token hết hạn.
 - Trước đây `refresh()` cấp lại token bằng vai trò trong token cũ và không kiểm `status` → người bị khóa
   giữ quyền vô thời hạn. Nay đọc lại từ DB và thu hồi sạch phiên.
@@ -163,7 +167,7 @@ bash test/smoke-authz.sh   # 27 ca kiểm thử ma trận quyền (cần server 
 - Cảnh báo khi production còn dùng JWT secret mặc định.
 
 ## Triển khai
-Chạy native, không dùng Docker. Đảm bảo PostgreSQL (5432) + Redis (6379) đang chạy,
+Chạy native, không dùng Docker và không cần Redis. Đảm bảo PostgreSQL (5432) đang chạy,
 rồi:
 ```bash
 npm run build && npm run start:prod   # backend :3001

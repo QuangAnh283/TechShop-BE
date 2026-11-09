@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { UserRole, UserStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { RedisService } from '../../redis/redis.service';
 import { ALL_PERMISSIONS, Permission } from '../../common/authz/permissions';
 
 /** Ảnh chụp quyền hiệu lực của một user tại thời điểm request. */
@@ -15,41 +14,24 @@ export interface EffectiveAccess {
 
 @Injectable()
 export class PermissionsService {
-  /** TTL ngắn: đủ để tiết kiệm truy vấn, đủ ngắn để sai lệch không kéo dài. */
-  private static readonly TTL = 300;
-
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Khóa cache quyền. CỐ Ý không dùng tiền tố `cache:` — các service admin gọi
-   * `delByPattern('cache:*')` khi ghi dữ liệu, sẽ xóa nhầm quyền của mọi người.
-   */
-  private key(userId: string): string {
-    return `authz:user:${userId}`;
-  }
-
-  /**
-   * Quyền hiệu lực của user, đọc Redis trước rồi mới tới DB.
+   * Quyền hiệu lực của user — **đọc thẳng DB mỗi request, KHÔNG cache.**
    *
    * Trả `null` nếu tài khoản không còn dùng được (không tồn tại / đã xóa mềm / bị
    * khóa) — người gọi phải coi đó là 401, KHÔNG được coi là "không có quyền nào".
    *
    * Vì sao không nhét quyền vào JWT: token sống 15 phút, nhét quyền vào đó là tái
    * tạo đúng lỗ hổng "token mang quyền cũ" mà hệ thống vừa phải vá, chỉ ở quy mô
-   * lớn hơn. Đọc theo userId thì gỡ quyền có hiệu lực ngay sau khi invalidate.
+   * lớn hơn. Đọc theo userId thì gỡ quyền có hiệu lực ngay ở request kế tiếp.
+   *
+   * Vì sao KHÔNG cache (trước đây cache Redis `authz:user:<id>` TTL 300s): cache
+   * quyền bắt mọi chỗ ghi phải nhớ gọi invalidate đúng khóa — chính là nguồn của lỗ
+   * hổng phân quyền đã phải vá. Đây là một truy vấn khóa chính có index (~1-2ms),
+   * đổi lấy việc bỏ hẳn một lớp trạng thái phải đồng bộ là đáng.
    */
   async getEffective(userId: string): Promise<EffectiveAccess | null> {
-    // withCache fail-open: Redis hỏng thì rơi về DB — vẫn ĐÚNG, chỉ chậm hơn.
-    const snapshot = await this.redis.withCache(this.key(userId), PermissionsService.TTL, () =>
-      this.loadFromDb(userId),
-    );
-    return snapshot;
-  }
-
-  private async loadFromDb(userId: string): Promise<EffectiveAccess | null> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -74,22 +56,5 @@ export class PermissionsService {
           ) ?? []);
 
     return { userId: user.id, email: user.email, role: user.role, isAdmin, permissions };
-  }
-
-  /**
-   * Xóa cache quyền + thu hồi mọi phiên của user.
-   * Gọi sau MỌI thay đổi: role, status, nhóm quyền, xóa mềm tài khoản.
-   */
-  async invalidateUser(userId: string): Promise<void> {
-    await this.redis.del(this.key(userId));
-  }
-
-  /** Sửa/xóa nhóm → vô hiệu cache của từng thành viên (chính xác hơn quét `authz:user:*`). */
-  async invalidateGroup(groupId: string): Promise<void> {
-    const members = await this.prisma.user.findMany({
-      where: { permissionGroupId: groupId },
-      select: { id: true },
-    });
-    await Promise.all(members.map((m) => this.invalidateUser(m.id)));
   }
 }

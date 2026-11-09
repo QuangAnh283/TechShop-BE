@@ -53,12 +53,8 @@ export class OrdersController {
 
   @Post(':id/refund')
   @RequirePermissions(PERM.ORDER_REFUND)
-  refund(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthUser,
-    @Body() dto: RefundOrderDto,
-  ) {
-    return this.ordersService.refund(id, user, dto.reason);
+  refund(@Param('id') id: string, @CurrentUser() user: AuthUser, @Body() dto: RefundOrderDto) {
+    return this.ordersService.refund(id, user, dto);
   }
 
   @Patch(':id/cancel')

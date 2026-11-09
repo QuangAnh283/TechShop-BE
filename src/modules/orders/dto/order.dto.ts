@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { OrderStatus, PaymentProvider } from '@prisma/client';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 
 export class CreateOrderDto {
@@ -31,6 +31,16 @@ export class RefundOrderDto {
   @IsOptional()
   @IsString()
   reason?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Khách đã trả lại máy chưa. CHỈ có tác dụng với đơn đã DELIVERED: để false/bỏ trống ' +
+      'thì máy KHÔNG được nhập lại kho (vì nó đang ở chỗ khách). Đơn chưa giao xong luôn ' +
+      'được hoàn kho bất kể cờ này.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  goodsReturned?: boolean;
 }
 
 export class QueryOrderDto extends PaginationQueryDto {

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { RedisService } from '../../redis/redis.service';
+import { CacheService } from '../../cache/cache.service';
 import { slugify } from '../../common/utils/slug.util';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 
@@ -11,7 +11,7 @@ export class CategoriesService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
+    private readonly cache: CacheService,
   ) {}
 
   async create(dto: CreateCategoryDto) {
@@ -23,12 +23,12 @@ export class CategoriesService {
         sortOrder: dto.sortOrder ?? 0,
       },
     });
-    await this.redis.del(CategoriesService.CACHE_KEY);
+    await this.cache.del(CategoriesService.CACHE_KEY);
     return created;
   }
 
   findAll() {
-    return this.redis.withCache(CategoriesService.CACHE_KEY, CategoriesService.TTL, () =>
+    return this.cache.withCache(CategoriesService.CACHE_KEY, CategoriesService.TTL, () =>
       this.prisma.category.findMany({
         orderBy: { sortOrder: 'asc' },
         include: { _count: { select: { products: true } } },
@@ -54,14 +54,14 @@ export class CategoriesService {
         slug: dto.slug ? slugify(dto.slug) : undefined,
       },
     });
-    await this.redis.del(CategoriesService.CACHE_KEY);
+    await this.cache.del(CategoriesService.CACHE_KEY);
     return updated;
   }
 
   async remove(id: string) {
     await this.ensureExists(id);
     await this.prisma.category.delete({ where: { id } });
-    await this.redis.del(CategoriesService.CACHE_KEY);
+    await this.cache.del(CategoriesService.CACHE_KEY);
     return { message: 'Đã xóa danh mục' };
   }
 

@@ -81,11 +81,4 @@ export class TradeInManageController {
     const { status, ...importOpts } = dto;
     return this.tradeInService.updateStatus(id, status, importOpts, user);
   }
-
-  /** Đánh dấu đã trả máy cho khách (yêu cầu đã bị từ chối mà máy từng nhận về). */
-  @Patch('requests/:id/return')
-  @RequirePermissions(PERM.TRADEIN_COMPLETE)
-  returnDevice(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.tradeInService.returnDevice(id, user);
-  }
 }

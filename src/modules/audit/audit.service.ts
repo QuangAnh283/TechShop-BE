@@ -13,7 +13,7 @@ export interface AuditActor {
 /**
  * Nhật ký quản trị — ghi lại các thao tác nhạy cảm.
  *
- * FAIL-OPEN như Redis: lỗi ghi audit KHÔNG được làm hỏng request nghiệp vụ.
+ * FAIL-OPEN: lỗi ghi audit KHÔNG được làm hỏng request nghiệp vụ.
  * `actorEmail` lưu denormalized để log bất biến (không vỡ khi user bị xóa sau này).
  */
 @Injectable()
@@ -83,5 +83,4 @@ export const AUDIT_ACTIONS = [
   'GROUP_DELETE',
   'TRADEIN_INSPECT',
   'TRADEIN_STATUS_CHANGE',
-  'TRADEIN_RETURN',
 ] as const;

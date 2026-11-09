@@ -1,18 +1,19 @@
 -- TechShop seed data (data-only). Import SAU khi đã chạy prisma migrate deploy.
--- Sinh tự động bởi prisma/dump.ts lúc 2026-10-20T09:28:26.815Z
+-- Sinh tự động bởi prisma/dump.ts lúc 2026-11-09T08:43:49.108Z
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict BWpQQLBnmN8IuMNWwgzNDw5h3Bqg0FsNDn8uSpQiYhIVewoVfvrWLzj6ITB9naA
+\restrict enYAFqxFJYjbeOiR4I6DYOxVKurlh8nt12SxiI4Naxwde5oo0lr3nPWxg45VRqQ
 
--- Dumped from database version 16.15
--- Dumped by pg_dump version 16.15
+-- Dumped from database version 18.6
+-- Dumped by pg_dump version 18.6
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
@@ -31,9 +32,9 @@ ALTER TABLE public."PermissionGroup" DISABLE TRIGGER ALL;
 
 INSERT INTO public."PermissionGroup" (id, code, name, description, permissions, "isSystem", "createdAt", "updatedAt", "deletedAt") VALUES ('grp_sales', 'SALES', 'Nhân viên bán hàng', 'Tiếp nhận và xử lý đơn hàng, không đụng tới giá và kho.', '{order.read_all,order.process,order.cancel_any,product.read,inventory.read}', true, '2026-10-20 09:26:07.384', '2026-10-20 09:26:07.384', NULL);
 INSERT INTO public."PermissionGroup" (id, code, name, description, permissions, "isSystem", "createdAt", "updatedAt", "deletedAt") VALUES ('grp_warehouse', 'WAREHOUSE', 'Nhân viên kho', 'Nhập xuất kho, bảo hành, sửa chữa. Không được sửa giá.', '{inventory.read,inventory.manage,warehouse.manage,device.warranty,device.repair,media.upload,product.read}', true, '2026-10-20 09:26:07.39', '2026-10-20 09:26:07.39', NULL);
-INSERT INTO public."PermissionGroup" (id, code, name, description, permissions, "isSystem", "createdAt", "updatedAt", "deletedAt") VALUES ('grp_technician', 'TECHNICIAN', 'Kỹ thuật viên thu cũ', 'Kiểm định máy thu cũ và chốt giá đề nghị; quản lý kho kỹ thuật.', '{tradein.read,tradein.assign,tradein.inspect,inventory.read,inventory.manage,device.warranty,device.repair,media.upload}', true, '2026-10-20 09:26:07.393', '2026-10-20 09:26:07.393', NULL);
-INSERT INTO public."PermissionGroup" (id, code, name, description, permissions, "isSystem", "createdAt", "updatedAt", "deletedAt") VALUES ('grp_content', 'CONTENT', 'Biên tập nội dung', 'Quản lý sản phẩm, danh mục, hình ảnh và đánh giá. Không được sửa giá.', '{product.read,product.manage,catalog.manage,media.upload,media.delete,review.delete_any}', true, '2026-10-20 09:26:07.396', '2026-10-20 09:26:07.396', NULL);
 INSERT INTO public."PermissionGroup" (id, code, name, description, permissions, "isSystem", "createdAt", "updatedAt", "deletedAt") VALUES ('grp_manager', 'MANAGER', 'Quản lý cửa hàng', 'Toàn bộ nghiệp vụ, gồm cả các thao tác chạm tiền. Không quản trị tài khoản.', '{product.read,product.manage,product.delete,catalog.manage,price.update,inventory.read,inventory.manage,warehouse.manage,device.warranty,device.repair,media.upload,media.delete,review.delete_any,order.read_all,order.process,order.cancel_any,tradein.read,tradein.assign,tradein.inspect,tradein.complete,tradein.config,report.read}', true, '2026-10-20 09:26:07.398', '2026-10-20 09:26:07.398', NULL);
+INSERT INTO public."PermissionGroup" (id, code, name, description, permissions, "isSystem", "createdAt", "updatedAt", "deletedAt") VALUES ('grp_content', 'CONTENT', 'Biên tập nội dung', 'Quản lý sản phẩm, danh mục, hình ảnh và đánh giá. Không được sửa giá.', '{product.read,product.manage,catalog.manage,media.upload,media.delete,review.delete_any}', true, '2026-10-20 09:26:07.396', '2026-11-09 08:05:22.679', NULL);
+INSERT INTO public."PermissionGroup" (id, code, name, description, permissions, "isSystem", "createdAt", "updatedAt", "deletedAt") VALUES ('grp_technician', 'TECHNICIAN', 'Kỹ thuật viên thu cũ', 'Xử lý yêu cầu thu cũ từ lúc tiếp nhận tới lúc hoàn tất; quản lý kho kỹ thuật.', '{tradein.read,tradein.assign,tradein.inspect,inventory.read,inventory.manage,device.warranty,device.repair,media.upload,tradein.complete}', true, '2026-10-20 09:26:07.393', '2026-10-20 09:26:07.393', NULL);
 
 
 ALTER TABLE public."PermissionGroup" ENABLE TRIGGER ALL;
@@ -46,7 +47,7 @@ ALTER TABLE public."User" DISABLE TRIGGER ALL;
 
 INSERT INTO public."User" (id, email, "passwordHash", "fullName", phone, role, status, "createdAt", "updatedAt", "deletedAt", "emailVerified", "permissionGroupId") VALUES ('cmuzescba0000n38wsa42u6hn', 'admin@techshop.local', '$2a$10$bvITwn.uASBmB32x8etCuepfxxwtb0xmdKFheMGRecBqfCbdSJBH.', 'Quản trị viên', NULL, 'ADMIN', 'ACTIVE', '2026-10-08 10:43:53.302', '2026-10-08 10:43:53.302', NULL, true, NULL);
 INSERT INTO public."User" (id, email, "passwordHash", "fullName", phone, role, status, "createdAt", "updatedAt", "deletedAt", "emailVerified", "permissionGroupId") VALUES ('cmuzescef0002n38wa5c9lgwu', 'customer@techshop.local', '$2a$10$iR4/P/x/OFDlN0f7jfnJAulgH5Zr5hwWmlVkRd7uWRNfE9AE/wHBa', 'Khách Demo', '0900000000', 'CUSTOMER', 'ACTIVE', '2026-10-08 10:43:53.415', '2026-10-08 10:43:53.415', NULL, true, NULL);
-INSERT INTO public."User" (id, email, "passwordHash", "fullName", phone, role, status, "createdAt", "updatedAt", "deletedAt", "emailVerified", "permissionGroupId") VALUES ('cmuzesccy0001n38wed9xl0cy', 'tech@techshop.local', '$2a$10$ZVisyBPTNC9/q4CtalWROus6tqYxtbQQOtgffxPYeXoN7PCJhme6a', 'Kỹ thuật viên', NULL, 'TECHNICIAN', 'ACTIVE', '2026-10-08 10:43:53.362', '2026-10-20 09:26:07.401', NULL, true, 'grp_technician');
+INSERT INTO public."User" (id, email, "passwordHash", "fullName", phone, role, status, "createdAt", "updatedAt", "deletedAt", "emailVerified", "permissionGroupId") VALUES ('cmuzesccy0001n38wed9xl0cy', 'tech@techshop.local', '$2a$10$ZVisyBPTNC9/q4CtalWROus6tqYxtbQQOtgffxPYeXoN7PCJhme6a', 'Kỹ thuật viên', NULL, 'TECHNICIAN', 'ACTIVE', '2026-10-08 10:43:53.362', '2026-11-09 08:04:13.228', NULL, true, 'grp_technician');
 
 
 ALTER TABLE public."User" ENABLE TRIGGER ALL;
@@ -57,9 +58,7 @@ ALTER TABLE public."User" ENABLE TRIGGER ALL;
 
 ALTER TABLE public."Address" DISABLE TRIGGER ALL;
 
-INSERT INTO public."Address" (id, "userId", "fullName", phone, line, ward, district, province, "isDefault", "createdAt", "updatedAt") VALUES ('cmuzescef0003n38wc1fyfqyp', 'cmuzescef0002n38wa5c9lgwu', 'Khách Demo', '0900000000', '123 Đường Demo', 'Phường 1', 'Quận 1', 'TP. Hồ Chí Minh', false, '2026-10-08 10:43:53.415', '2026-10-09 15:11:12.789');
-INSERT INTO public."Address" (id, "userId", "fullName", phone, line, ward, district, province, "isDefault", "createdAt", "updatedAt") VALUES ('cmuzqslbx0009n3ik8gvsk6sd', 'cmuzescef0002n38wa5c9lgwu', 'Nguyen Van A', '0901234567', '1 Demo', NULL, NULL, NULL, false, '2026-10-08 16:20:00.382', '2026-10-09 15:11:12.789');
-INSERT INTO public."Address" (id, "userId", "fullName", phone, line, ward, district, province, "isDefault", "createdAt", "updatedAt") VALUES ('cmv13rz4r0005n3yki4nm0cm1', 'cmuzescef0002n38wa5c9lgwu', 'bố mày', '0123456789', 'abc', '123bc', 'ád1', 'hà nội', true, '2026-10-09 15:11:12.795', '2026-10-09 15:11:12.795');
+INSERT INTO public."Address" (id, "userId", "fullName", phone, line, ward, district, province, "isDefault", "createdAt", "updatedAt", "deletedAt") VALUES ('cmw8yvp5a000qn3iwj0lx4pfg', 'cmuzescef0002n38wa5c9lgwu', 'Faker', '0123456789', 'abc hà nội', 'ngọc hà', 'ba đình', 'Hà Nội', true, '2026-11-09 07:56:00.143', '2026-11-09 07:56:00.143', NULL);
 
 
 ALTER TABLE public."Address" ENABLE TRIGGER ALL;
@@ -904,7 +903,6 @@ INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryH
 INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzesdt002i0n38wrz6hn8hy', 'cmuzesdsp02hen38wl7fcsad1', '221676993004377', 'FAIR', 95, NULL, '28.93 Wh', 15650000, 18410000, 'IN_STOCK', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 10:43:55.236', '2026-10-08 16:20:00.542', NULL);
 INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzesdxc02qqn38wf71hpwev', 'cmuzesdx402q6n38w51pu3ste', '380087562707572', 'FAIR', 89, NULL, '36.59 Wh', 17690000, 20810000, 'SOLD', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 10:43:55.392', '2026-10-08 16:05:00.05', NULL);
 INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzesdwo02pen38wpgnsmg72', 'cmuzesdwd02osn38wub8gjjxt', '974923518541404', 'EXCELLENT', 86, NULL, '36.59 Wh', 19860000, 23360000, 'SOLD', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 10:43:55.369', '2026-10-08 16:05:00.062', NULL);
-INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzesdx902qmn38wo2wit4af', 'cmuzesdx402q6n38w51pu3ste', '969423463950169', 'FAIR', 83, NULL, '36.59 Wh', 17690000, 20810000, 'IN_STOCK', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 10:43:55.389', '2026-10-09 15:12:30.318', NULL);
 INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzesdwj02p8n38wnaliryjp', 'cmuzesdwd02osn38wub8gjjxt', '956241046423765', 'EXCELLENT', 94, NULL, '36.59 Wh', 19860000, 23360000, 'IN_STOCK', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 10:43:55.363', '2026-10-19 09:15:00.028', NULL);
 INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzesdw902omn38w7qgrczqf', 'cmuzesdvz02o2n38wb630dv4j', '899216273002120', 'LIKE_NEW', 99, NULL, '36.59 Wh', 27610000, 32480000, 'IN_STOCK', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 10:43:55.353', '2026-10-19 09:15:00.04', NULL);
 INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzesdux02lun38wh6of29hd', 'cmuzesdup02lan38wgt3m7idk', '949111680117461', 'LIKE_NEW', 96, NULL, '28.93 Wh', 9100000, 10700000, 'IN_STOCK', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 10:43:55.305', '2026-10-19 09:12:12.642', NULL);
@@ -913,6 +911,7 @@ INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryH
 INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzesdvt02nsn38w4l3bzj6g', 'cmuzesdvo02ncn38wb9qbbv9i', '392813594427071', 'EXCELLENT', 98, NULL, '36.59 Wh', 21250000, 25000000, 'IN_STOCK', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 10:43:55.337', '2026-10-20 09:26:33.345', NULL);
 INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzesduu02lqn38wl1vysbg4', 'cmuzesdup02lan38wgt3m7idk', '711325369770616', 'GOOD', 87, NULL, '28.93 Wh', 7280000, 8560000, 'IN_STOCK', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 10:43:55.303', '2026-10-20 09:26:33.621', NULL);
 INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzqslsq000un3ik594geuit', 'cmuzesdbh01lwn38wayt531df', '350000000000001', 'GOOD', NULL, NULL, NULL, 5000000, 6000000, 'IN_STOCK', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 16:20:00.986', '2026-10-20 09:28:08.262', NULL);
+INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzesdx902qmn38wo2wit4af', 'cmuzesdx402q6n38w51pu3ste', '969423463950169', 'FAIR', 83, NULL, '36.59 Wh', 17690000, 20810000, 'IN_STOCK', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 10:43:55.389', '2026-11-09 08:20:54.67', NULL);
 
 
 ALTER TABLE public."Device" ENABLE TRIGGER ALL;
@@ -926,16 +925,6 @@ ALTER TABLE public."CartItem" DISABLE TRIGGER ALL;
 
 
 ALTER TABLE public."CartItem" ENABLE TRIGGER ALL;
-
---
--- Data for Name: EmailVerificationToken; Type: TABLE DATA; Schema: public; Owner: -
---
-
-ALTER TABLE public."EmailVerificationToken" DISABLE TRIGGER ALL;
-
-
-
-ALTER TABLE public."EmailVerificationToken" ENABLE TRIGGER ALL;
 
 --
 -- Data for Name: InventoryTxn; Type: TABLE DATA; Schema: public; Owner: -
@@ -1259,9 +1248,9 @@ ALTER TABLE public."InventoryTxn" ENABLE TRIGGER ALL;
 
 ALTER TABLE public."Order" DISABLE TRIGGER ALL;
 
-INSERT INTO public."Order" (id, "orderNumber", "userId", status, subtotal, "shippingFee", total, "addressId", note, "createdAt", "updatedAt") VALUES ('cmv13szem000ln3yksbw8hgwn', 'ODMV13SZEKE600', 'cmuzescef0002n38wa5c9lgwu', 'CANCELLED', 20810000, 0, 20810000, NULL, NULL, '2026-10-09 15:11:59.807', '2026-10-09 15:12:30.334');
-INSERT INTO public."Order" (id, "orderNumber", "userId", status, subtotal, "shippingFee", total, "addressId", note, "createdAt", "updatedAt") VALUES ('cmv13s1ha0007n3ykct17ke3w', 'ODMV13S1H73B58', 'cmuzescef0002n38wa5c9lgwu', 'CANCELLED', 23360000, 0, 23360000, 'cmv13rz4r0005n3yki4nm0cm1', NULL, '2026-10-09 15:11:15.839', '2026-10-19 09:15:00.031');
-INSERT INTO public."Order" (id, "orderNumber", "userId", status, subtotal, "shippingFee", total, "addressId", note, "createdAt", "updatedAt") VALUES ('cmv13sxxi000en3ykxox2xc5r', 'ODMV13SXXFB494', 'cmuzescef0002n38wa5c9lgwu', 'CANCELLED', 32480000, 0, 32480000, 'cmv13rz4r0005n3yki4nm0cm1', NULL, '2026-10-09 15:11:57.894', '2026-10-19 09:15:00.042');
+INSERT INTO public."Order" (id, "orderNumber", "userId", status, subtotal, "shippingFee", total, "addressId", note, "createdAt", "updatedAt") VALUES ('cmv13szem000ln3yksbw8hgwn', 'ODMV13SZEKE600', 'cmuzescef0002n38wa5c9lgwu', 'CANCELLED', 20810000, 0, 20810000, 'cmw8yvp5a000qn3iwj0lx4pfg', NULL, '2026-10-09 15:11:59.807', '2026-10-09 15:12:30.334');
+INSERT INTO public."Order" (id, "orderNumber", "userId", status, subtotal, "shippingFee", total, "addressId", note, "createdAt", "updatedAt") VALUES ('cmv13s1ha0007n3ykct17ke3w', 'ODMV13S1H73B58', 'cmuzescef0002n38wa5c9lgwu', 'CANCELLED', 23360000, 0, 23360000, 'cmw8yvp5a000qn3iwj0lx4pfg', NULL, '2026-10-09 15:11:15.839', '2026-10-19 09:15:00.031');
+INSERT INTO public."Order" (id, "orderNumber", "userId", status, subtotal, "shippingFee", total, "addressId", note, "createdAt", "updatedAt") VALUES ('cmv13sxxi000en3ykxox2xc5r', 'ODMV13SXXFB494', 'cmuzescef0002n38wa5c9lgwu', 'CANCELLED', 32480000, 0, 32480000, 'cmw8yvp5a000qn3iwj0lx4pfg', NULL, '2026-10-09 15:11:57.894', '2026-10-19 09:15:00.042');
 
 
 ALTER TABLE public."Order" ENABLE TRIGGER ALL;
@@ -1280,24 +1269,14 @@ INSERT INTO public."OrderItem" (id, "orderId", "deviceId", "productId", "unitPri
 ALTER TABLE public."OrderItem" ENABLE TRIGGER ALL;
 
 --
--- Data for Name: PasswordResetOtp; Type: TABLE DATA; Schema: public; Owner: -
---
-
-ALTER TABLE public."PasswordResetOtp" DISABLE TRIGGER ALL;
-
-
-
-ALTER TABLE public."PasswordResetOtp" ENABLE TRIGGER ALL;
-
---
 -- Data for Name: Payment; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 ALTER TABLE public."Payment" DISABLE TRIGGER ALL;
 
-INSERT INTO public."Payment" (id, "orderId", provider, amount, status, "transactionRef", "providerData", "paidAt", "createdAt", "updatedAt") VALUES ('cmv13szem000on3ykonyaxqgi', 'cmv13szem000ln3yksbw8hgwn', 'VNPAY', 20810000, 'FAILED', 'ODMV13SZEKE600-1791558727363', NULL, NULL, '2026-10-09 15:11:59.807', '2026-10-09 15:12:30.327');
-INSERT INTO public."Payment" (id, "orderId", provider, amount, status, "transactionRef", "providerData", "paidAt", "createdAt", "updatedAt") VALUES ('cmv13s1ha000an3yk6swxgebd', 'cmv13s1ha0007n3ykct17ke3w', 'VNPAY', 23360000, 'FAILED', 'ODMV13S1H73B58-1791558675862', NULL, NULL, '2026-10-09 15:11:15.839', '2026-10-19 09:15:00.03');
-INSERT INTO public."Payment" (id, "orderId", provider, amount, status, "transactionRef", "providerData", "paidAt", "createdAt", "updatedAt") VALUES ('cmv13sxxi000hn3ykztzl8t6f', 'cmv13sxxi000en3ykxox2xc5r', 'VNPAY', 32480000, 'FAILED', 'ODMV13SXXFB494-1791558717930', NULL, NULL, '2026-10-09 15:11:57.894', '2026-10-19 09:15:00.041');
+INSERT INTO public."Payment" (id, "orderId", provider, amount, status, "transactionRef", "providerData", "paidAt", "createdAt", "updatedAt", "refundedAt") VALUES ('cmv13szem000on3ykonyaxqgi', 'cmv13szem000ln3yksbw8hgwn', 'VNPAY', 20810000, 'FAILED', 'ODMV13SZEKE600-1791558727363', NULL, NULL, '2026-10-09 15:11:59.807', '2026-10-09 15:12:30.327', NULL);
+INSERT INTO public."Payment" (id, "orderId", provider, amount, status, "transactionRef", "providerData", "paidAt", "createdAt", "updatedAt", "refundedAt") VALUES ('cmv13s1ha000an3yk6swxgebd', 'cmv13s1ha0007n3ykct17ke3w', 'VNPAY', 23360000, 'FAILED', 'ODMV13S1H73B58-1791558675862', NULL, NULL, '2026-10-09 15:11:15.839', '2026-10-19 09:15:00.03', NULL);
+INSERT INTO public."Payment" (id, "orderId", provider, amount, status, "transactionRef", "providerData", "paidAt", "createdAt", "updatedAt", "refundedAt") VALUES ('cmv13sxxi000hn3ykztzl8t6f', 'cmv13sxxi000en3ykxox2xc5r', 'VNPAY', 32480000, 'FAILED', 'ODMV13SXXFB494-1791558717930', NULL, NULL, '2026-10-09 15:11:57.894', '2026-10-19 09:15:00.041', NULL);
 
 
 ALTER TABLE public."Payment" ENABLE TRIGGER ALL;
@@ -2717,53 +2696,6 @@ INSERT INTO public."ProductSpec" (id, "productId", name, value, "sortOrder") VAL
 ALTER TABLE public."ProductSpec" ENABLE TRIGGER ALL;
 
 --
--- Data for Name: RefreshToken; Type: TABLE DATA; Schema: public; Owner: -
---
-
-ALTER TABLE public."RefreshToken" DISABLE TRIGGER ALL;
-
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzfz7k90001n3d8hgp0b8rz', 'cmuzescba0000n38wsa42u6hn', '1ddfd8f3-2228-4288-b2ce-5a044b951090', '2026-10-15 11:17:13.352', NULL, '2026-10-08 11:17:13.353');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzfzrq4000fn3d833pwem20', 'cmuzescba0000n38wsa42u6hn', 'e4bf7ef4-6d7d-4b6b-9f37-6cc42f04bf67', '2026-10-15 11:17:39.483', NULL, '2026-10-08 11:17:39.484');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzg6xgr0004n30cm07oortp', 'cmuzescba0000n38wsa42u6hn', 'af7a5027-a415-4a35-ac06-b2e655330f51', '2026-10-15 11:23:13.514', NULL, '2026-10-08 11:23:13.516');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzg6xk70006n30cw9gwdk8f', 'cmuzesccy0001n38wed9xl0cy', '65ad28d0-5a9b-4648-bb2a-89a711be1b79', '2026-10-15 11:23:13.638', NULL, '2026-10-08 11:23:13.639');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzg8n9s000en30c45iilk5l', 'cmuzescba0000n38wsa42u6hn', '811f11ba-9228-4a54-a960-838d59f6b396', '2026-10-15 11:24:33.615', NULL, '2026-10-08 11:24:33.617');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzg8ndq000gn30clwotrq99', 'cmuzesccy0001n38wed9xl0cy', 'ad4bbcc6-8ba5-4b94-92f8-05592dadcc82', '2026-10-15 11:24:33.757', NULL, '2026-10-08 11:24:33.758');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzgl0nq0006n33wm65hedjs', 'cmuzescba0000n38wsa42u6hn', '29e4172a-bc9f-477e-9126-0d9e09d8d568', '2026-10-15 11:34:10.838', NULL, '2026-10-08 11:34:10.839');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzgrync0001n33sbpwr37w2', 'cmuzescba0000n38wsa42u6hn', '921fb8d6-a7c0-47da-8e94-324001255590', '2026-10-15 11:39:34.823', NULL, '2026-10-08 11:39:34.824');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzpshr40001qp3in9b4den3', 'cmuzescba0000n38wsa42u6hn', '7160004d-66e4-423f-b628-d440c392d9f8', '2026-10-15 15:51:56.127', NULL, '2026-10-08 15:51:56.128');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzq8mv90001n36scf64pdz1', 'cmuzescba0000n38wsa42u6hn', '056e3da5-220b-4bb9-baa3-ea1508e44ac1', '2026-10-15 16:04:29.233', NULL, '2026-10-08 16:04:29.252');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzq8myp0003n36sjb2k3a0i', 'cmuzescef0002n38wa5c9lgwu', 'f970eb88-0881-4945-a15b-8002f654eb2d', '2026-10-15 16:04:29.377', NULL, '2026-10-08 16:04:29.378');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzq9fiy000ln36sq88x01sn', 'cmuzescba0000n38wsa42u6hn', '0a261976-ba8c-488f-aa73-3ce77b68fe90', '2026-10-15 16:05:06.391', NULL, '2026-10-08 16:05:06.394');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzq9fm9000nn36sq1pkckkk', 'cmuzescef0002n38wa5c9lgwu', '08a7ec91-87cb-44c3-bdc7-47189e3b4ac2', '2026-10-15 16:05:06.51', NULL, '2026-10-08 16:05:06.513');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzqsahc0001n3ikrty0tv2u', 'cmuzescba0000n38wsa42u6hn', '4dd8a26b-7ff7-4444-abd4-03a7d3985243', '2026-10-15 16:19:46.313', NULL, '2026-10-08 16:19:46.32');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzqsako0003n3ikqhctktb5', 'cmuzescef0002n38wa5c9lgwu', '5956ced0-d9b5-47eb-8104-fd30f8102dde', '2026-10-15 16:19:46.434', NULL, '2026-10-08 16:19:46.441');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzqsl8q0005n3ikrn5i0ny3', 'cmuzescba0000n38wsa42u6hn', '5f01a947-6285-4d31-b724-28bde77b772d', '2026-10-15 16:20:00.26', NULL, '2026-10-08 16:20:00.267');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzqslbf0007n3ikaykuar8p', 'cmuzescef0002n38wa5c9lgwu', '509bdbce-283a-48da-b1c2-4b66bc595fee', '2026-10-15 16:20:00.357', NULL, '2026-10-08 16:20:00.364');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzt1f170001n3h44c521ell', 'cmuzescba0000n38wsa42u6hn', 'c0591157-50c7-447c-bf9f-95ddd7c1d7ea', '2026-10-15 17:22:51.352', NULL, '2026-10-08 17:22:51.355');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzt1nvb0003n3h4i1w4tdko', 'cmuzescba0000n38wsa42u6hn', '8908ab5f-c33e-4a36-97aa-629cce2db962', '2026-10-15 17:23:02.804', NULL, '2026-10-08 17:23:02.808');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzts07m0005n3h4qegx6c2v', 'cmuzescef0002n38wa5c9lgwu', '224136e5-9caf-4a9a-b797-9b11b6dd3b02', '2026-10-15 17:43:31.857', NULL, '2026-10-08 17:43:31.859');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzug1820007n3h4brhypvv3', 'cmuzescef0002n38wa5c9lgwu', '263d3c35-14bb-4f2a-8d29-8dc73e7a1304', '2026-10-15 18:02:12.913', NULL, '2026-10-08 18:02:12.915');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzug1i70009n3h4i6amjy9v', 'cmuzescba0000n38wsa42u6hn', 'c7480dc2-712c-4f60-b430-e8b3085d0b6e', '2026-10-15 18:02:13.278', NULL, '2026-10-08 18:02:13.279');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzuvmtq000dn3h415dqz9a2', 'cmuzescef0002n38wa5c9lgwu', '31f19fba-763c-47f9-a427-1a29d45df99b', '2026-10-15 18:14:20.743', NULL, '2026-10-08 18:14:20.75');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzuvn3i000fn3h4j7kdsjt6', 'cmuzescba0000n38wsa42u6hn', 'a66cc6c7-6e86-40dd-92d1-2e71db15b4e1', '2026-10-15 18:14:21.095', NULL, '2026-10-08 18:14:21.102');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzuz6wf000hn3h4b94nq9ik', 'cmuzescef0002n38wa5c9lgwu', 'a23923c6-4a39-4888-85da-e41d8b381efe', '2026-10-15 18:17:06.733', NULL, '2026-10-08 18:17:06.735');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzuz715000jn3h4t4vb16vn', 'cmuzescef0002n38wa5c9lgwu', '563c5df5-cbd3-4c13-a734-c1eff16a423e', '2026-10-15 18:17:06.904', NULL, '2026-10-08 18:17:06.906');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzuz777000ln3h4921qbmbg', 'cmuzescba0000n38wsa42u6hn', 'a3f392f1-2352-454a-8349-03930eff6ff8', '2026-10-15 18:17:07.121', NULL, '2026-10-08 18:17:07.123');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzuz7bx000nn3h4hrq4ubt4', 'cmuzescba0000n38wsa42u6hn', '6b28b040-9390-44c2-b968-2d08aeea1e19', '2026-10-15 18:17:07.292', NULL, '2026-10-08 18:17:07.294');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzuzwq8000pn3h4drls4atf', 'cmuzescef0002n38wa5c9lgwu', 'b4d22d10-03f4-4ad4-aaf6-3c6b0c3db3bb', '2026-10-15 18:17:40.207', NULL, '2026-10-08 18:17:40.209');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzv2cdl000yn3h49vjdxwn4', 'cmuzescba0000n38wsa42u6hn', '415c7a54-f19b-46ef-8376-4be5eb9c6ce1', '2026-10-15 18:19:33.8', NULL, '2026-10-08 18:19:33.802');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmuzv2cib0010n3h4uocev9gi', 'cmuzescba0000n38wsa42u6hn', 'e99a7abf-4993-40f9-a61e-4dcc223d4711', '2026-10-15 18:19:33.97', NULL, '2026-10-08 18:19:33.972');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmv105jqz0001n3dgv6r3fu3w', 'cmuzescba0000n38wsa42u6hn', 'fe32f7d1-7501-4a55-9e8e-94fcd629abf9', '2026-10-16 13:29:47.573', NULL, '2026-10-09 13:29:47.578');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmv105jud0003n3dgtjbt15nh', 'cmuzescef0002n38wa5c9lgwu', '40a21193-0281-4860-99f4-2de25c6a18da', '2026-10-16 13:29:47.699', NULL, '2026-10-09 13:29:47.702');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmv105jxi0005n3dgjsu4gvzz', 'cmuzesccy0001n38wed9xl0cy', '69194113-9e7d-4846-bd0d-da81709c07b6', '2026-10-16 13:29:47.812', NULL, '2026-10-09 13:29:47.814');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmv10bj080009n3dgll8dxv53', 'cmuzescba0000n38wsa42u6hn', '1bd437ba-deb0-4c48-95d5-9c3297cbfaab', '2026-10-16 13:34:26.55', NULL, '2026-10-09 13:34:26.552');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmv109m9i0007n3dgrks39otl', 'cmuzescba0000n38wsa42u6hn', '839ff449-f0fd-4b8b-b20c-ae347ca8dac2', '2026-10-16 13:32:57.46', '2026-10-09 13:49:42.322', '2026-10-09 13:32:57.462');
-INSERT INTO public."RefreshToken" (id, "userId", "tokenHash", "expiresAt", "revokedAt", "createdAt") VALUES ('cmv10v5n2000bn3dg77wgnfr7', 'cmuzescba0000n38wsa42u6hn', '0e6c4e4d-34d2-45c3-8056-9145838f72b8', '2026-10-16 13:49:42.347', NULL, '2026-10-09 13:49:42.351');
-
-
-ALTER TABLE public."RefreshToken" ENABLE TRIGGER ALL;
-
---
 -- Data for Name: RepairHistory; Type: TABLE DATA; Schema: public; Owner: -
 --
 
@@ -3181,5 +3113,5 @@ ALTER TABLE public."Warranty" ENABLE TRIGGER ALL;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict BWpQQLBnmN8IuMNWwgzNDw5h3Bqg0FsNDn8uSpQiYhIVewoVfvrWLzj6ITB9naA
+\unrestrict enYAFqxFJYjbeOiR4I6DYOxVKurlh8nt12SxiI4Naxwde5oo0lr3nPWxg45VRqQ
 

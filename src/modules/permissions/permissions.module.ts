@@ -5,7 +5,7 @@ import { PermissionsBootstrap } from './permissions.bootstrap';
 import { PermissionsService } from './permissions.service';
 
 /**
- * @Global như PrismaModule/RedisModule: PermissionsService được dùng ở JwtStrategy và
+ * @Global như PrismaModule/CacheModule: PermissionsService được dùng ở JwtStrategy và
  * nhiều module khác, để global thì khỏi phải import lặp ở từng chỗ.
  */
 @Global()

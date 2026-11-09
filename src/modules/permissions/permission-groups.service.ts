@@ -9,7 +9,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ADMIN_ONLY_PERMISSIONS, Permission } from '../../common/authz/permissions';
 import { AuditActor, AuditService } from '../audit/audit.service';
 import { CreatePermissionGroupDto, UpdatePermissionGroupDto } from './dto/permission-group.dto';
-import { PermissionsService } from './permissions.service';
 
 const GROUP_SELECT = {
   id: true,
@@ -26,7 +25,6 @@ const GROUP_SELECT = {
 export class PermissionGroupsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly permissions: PermissionsService,
     private readonly audit: AuditService,
   ) {}
 
@@ -76,12 +74,16 @@ export class PermissionGroupsService {
       },
       select: GROUP_SELECT,
     });
-    // Đổi quyền của nhóm phải có hiệu lực ngay với mọi thành viên.
-    await this.permissions.invalidateGroup(group.id);
+    // Không cần invalidate gì: quyền được đọc thẳng DB mỗi request nên đổi quyền của
+    // nhóm có hiệu lực ngay với mọi thành viên ở request kế tiếp.
     await this.audit.log(actor, 'GROUP_UPDATE', {
       entity: 'PermissionGroup',
       entityId: group.id,
-      meta: { code: group.code, before: group.permissions, after: dto.permissions ?? group.permissions },
+      meta: {
+        code: group.code,
+        before: group.permissions,
+        after: dto.permissions ?? group.permissions,
+      },
     });
     return updated;
   }
@@ -126,7 +128,6 @@ export class PermissionGroupsService {
         permissionGroup: { select: { id: true, code: true, name: true } },
       },
     });
-    await this.permissions.invalidateUser(userId);
     await this.audit.log(actor, 'USER_GROUP_CHANGE', {
       entity: 'User',
       entityId: userId,

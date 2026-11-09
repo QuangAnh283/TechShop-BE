@@ -6,7 +6,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import configuration from './config/configuration';
 import { validationSchema } from './config/env.validation';
 import { PrismaModule } from './prisma/prisma.module';
-import { RedisModule } from './redis/redis.module';
+import { CacheModule } from './cache/cache.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AppController } from './app.controller';
@@ -40,7 +40,7 @@ import { MediaModule } from './modules/media/media.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     ScheduleModule.forRoot(),
     PrismaModule,
-    RedisModule,
+    CacheModule,
     PermissionsModule,
     AuditModule,
     MailModule,

@@ -5,7 +5,7 @@ import { Permission } from '../authz/permissions';
 /**
  * Payload user gắn vào request sau khi qua JwtAuthGuard.
  *
- * `role` và `permissions` được JwtStrategy nạp TƯƠI từ Redis/DB theo userId, không
+ * `role` và `permissions` được JwtStrategy nạp TƯƠI từ DB theo userId, không
  * lấy từ nội dung access token — nếu lấy từ token thì gỡ quyền sẽ không có hiệu lực
  * cho tới khi token hết hạn.
  */

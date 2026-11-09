@@ -17,7 +17,7 @@ import { paginate } from '../../common/dto/pagination.dto';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { MEDIA_SELECT, toUrl } from '../../common/utils/media.util';
 import { AuditService } from '../audit/audit.service';
-import { CreateOrderDto, QueryOrderDto } from './dto/order.dto';
+import { CreateOrderDto, QueryOrderDto, RefundOrderDto } from './dto/order.dto';
 
 /** Map media → thumbnailUrl cho từng item.product của đơn (giữ contract FE). */
 function mapOrderMedia<T extends { items?: any[] }>(order: T): T {
@@ -261,45 +261,46 @@ export class OrdersService {
    * Hoàn tiền đơn đã thanh toán (PAID): ghi nhận REFUNDED + hoàn kho + đóng đơn (CANCELLED) + audit.
    * Không gọi API VNPay (thực tế kế toán hoàn tay). Cho phép cả đơn đã DELIVERED (khách trả hàng).
    */
-  async refund(id: string, user: AuthUser, reason?: string) {
+  async refund(id: string, user: AuthUser, dto: RefundOrderDto = {}) {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: { payment: true, items: { select: { deviceId: true } } },
+      include: { payment: true },
     });
     if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
+    // Kiểm tra sớm để báo lỗi rõ ràng; dưới khóa còn kiểm lại lần nữa (requirePaid).
     if (order.payment?.status !== 'PAID') {
       throw new BadRequestException('Chỉ hoàn tiền cho đơn đã thanh toán (PAID)');
     }
-    const result = await this.prisma.$transaction(async (tx) => {
-      // Khóa Payment, đọc lại để tránh hoàn tiền hai lần song song.
-      const rows = await tx.$queryRaw<{ id: string; status: string }[]>(
-        Prisma.sql`SELECT id, status FROM "Payment" WHERE "orderId" = ${id} FOR UPDATE`,
-      );
-      if (rows[0]?.status !== 'PAID') {
-        throw new BadRequestException('Đơn không còn ở trạng thái đã thanh toán');
-      }
-      await tx.device.updateMany({
-        where: {
-          id: { in: order.items.map((i) => i.deviceId) },
-          status: { in: [DeviceStatus.RESERVED, DeviceStatus.SOLD] },
-        },
-        data: { status: DeviceStatus.IN_STOCK },
-      });
-      await tx.payment.update({
-        where: { id: rows[0].id },
-        data: { status: 'REFUNDED', refundedAt: new Date() },
-      });
-      const updated = await tx.order.update({
-        where: { id },
-        data: { status: OrderStatus.CANCELLED },
-        include: ORDER_INCLUDE,
-      });
-      return mapOrderMedia(updated);
-    });
+
+    // Máy chỉ được nhập kho lại khi nó thực sự nằm trong tầm kiểm soát của cửa hàng.
+    // Đơn chưa giao xong (PENDING/CONFIRMED/PROCESSING/SHIPPING) thì hàng còn ở kho hoặc
+    // đang trên đường, thu hồi được -> nhập kho luôn. Đơn đã DELIVERED thì máy đang ở chỗ
+    // khách: chỉ nhập kho khi người xử lý xác nhận ĐÃ NHẬN LẠI hàng, nếu không sẽ tạo ra
+    // một máy "ma" được rao bán trong khi khách vẫn đang giữ nó.
+    const deliveredToCustomer = order.status === OrderStatus.DELIVERED;
+    const restock = !deliveredToCustomer || dto.goodsReturned === true;
+
+    // Đi chung một đường hủy đơn với cancel()/cron: cùng thứ tự khóa Payment, cùng logic
+    // hoàn kho và đổi trạng thái thanh toán. Trước đây refund tự làm lấy -> hai nhánh code
+    // cùng dẫn tới CANCELLED, sửa một bên quên bên kia là lệch.
+    const result = await this.cancelInternal(id, { requirePaid: true, restock });
+    if (!result) {
+      throw new BadRequestException('Đơn không còn ở trạng thái đã thanh toán');
+    }
+
     await this.audit.log(user, 'ORDER_REFUND', {
       entity: 'Order',
       entityId: id,
-      meta: { orderNumber: order.orderNumber, amount: order.total, reason: reason ?? null },
+      meta: {
+        orderNumber: order.orderNumber,
+        amount: order.total,
+        reason: dto.reason ?? null,
+        // Giữ lại trạng thái TRƯỚC khi hoàn: đơn bị hủy và đơn đã giao rồi khách trả lại
+        // là hai sự kiện kinh doanh khác nhau, nhưng cả hai đều kết thúc ở CANCELLED.
+        from: order.status,
+        goodsReturned: restock,
+        stockRestored: restock,
+      },
     });
     return result;
   }
@@ -327,7 +328,21 @@ export class OrdersService {
    * Thiếu guard này, cron có thể hủy đúng đơn khách vừa trả tiền (payment PAID -> REFUNDED
    * dù chưa hoàn đồng nào). Khóa Payment trước cũng trùng thứ tự khóa của handleVnpayReturn.
    */
-  private async cancelInternal(orderId: string, opts: { onlyIfPendingUnpaid?: boolean } = {}) {
+  private async cancelInternal(
+    orderId: string,
+    opts: {
+      onlyIfPendingUnpaid?: boolean;
+      /** Hoàn tiền: dưới khóa phải còn PAID, nếu không thì bỏ qua (chống hoàn 2 lần song song). */
+      requirePaid?: boolean;
+      /**
+       * Có nhập máy về kho hay không. Mặc định `true`.
+       * Đặt `false` khi máy đang nằm ở chỗ khách (đơn đã DELIVERED mà khách chưa trả hàng) —
+       * nhập kho lúc đó là tạo ra máy "ma" được rao bán trong khi khách vẫn đang giữ nó.
+       */
+      restock?: boolean;
+    } = {},
+  ) {
+    const restock = opts.restock ?? true;
     return this.prisma.$transaction(async (tx) => {
       const paymentRows = await tx.$queryRaw<{ id: string; status: string }[]>(
         Prisma.sql`SELECT id, status FROM "Payment" WHERE "orderId" = ${orderId} FOR UPDATE`,
@@ -341,21 +356,24 @@ export class OrdersService {
         });
         if (fresh?.status !== OrderStatus.PENDING || payment?.status === 'PAID') return null;
       }
+      if (opts.requirePaid && payment?.status !== 'PAID') return null;
 
       const items = await tx.orderItem.findMany({ where: { orderId } });
       // Hoàn kho: CHỈ device đang bị đơn này giữ (RESERVED/SOLD) mới trở lại IN_STOCK —
       // không đụng tới máy đã bị chuyển DEFECTIVE/INSPECTING trong lúc đơn còn treo.
-      await tx.device.updateMany({
-        where: {
-          id: { in: items.map((i) => i.deviceId) },
-          status: { in: [DeviceStatus.RESERVED, DeviceStatus.SOLD] },
-        },
-        data: { status: DeviceStatus.IN_STOCK },
-      });
-      // Đã trả tiền -> REFUNDED; chưa trả -> FAILED.
+      if (restock) {
+        await tx.device.updateMany({
+          where: {
+            id: { in: items.map((i) => i.deviceId) },
+            status: { in: [DeviceStatus.RESERVED, DeviceStatus.SOLD] },
+          },
+          data: { status: DeviceStatus.IN_STOCK },
+        });
+      }
+      // Đã trả tiền -> REFUNDED (kèm mốc hoàn tiền); chưa trả -> FAILED.
       await tx.payment.updateMany({
         where: { orderId, status: 'PAID' },
-        data: { status: 'REFUNDED' },
+        data: { status: 'REFUNDED', refundedAt: new Date() },
       });
       await tx.payment.updateMany({
         where: { orderId, status: 'PENDING' },

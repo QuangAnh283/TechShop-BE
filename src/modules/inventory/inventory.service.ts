@@ -40,7 +40,11 @@ export class InventoryService {
     await this.audit.log(user, 'DEVICE_IMPORT', {
       entity: 'Device',
       entityId: device.id,
-      meta: { serialImei: device.serialImei, purchasePrice: device.purchasePrice, sellingPrice: device.sellingPrice },
+      meta: {
+        serialImei: device.serialImei,
+        purchasePrice: device.purchasePrice,
+        sellingPrice: device.sellingPrice,
+      },
     });
     return device;
   }

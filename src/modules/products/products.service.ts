@@ -1,14 +1,18 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { RedisService } from '../../redis/redis.service';
+import { CacheService } from '../../cache/cache.service';
 import { can } from '../../common/authz/can';
 import { PERM } from '../../common/authz/permissions';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { paginate } from '../../common/dto/pagination.dto';
 import { slugify } from '../../common/utils/slug.util';
-import { buildProductOrderBy } from '../../common/utils/product-sort.util';
-import { attachAvailability } from '../../common/utils/product-availability.util';
+import { buildProductOrderBy, priceSortDirection } from '../../common/utils/product-sort.util';
+import {
+  attachAvailability,
+  pageProductIdsByPrice,
+  PRODUCT_LIST_INCLUDE,
+} from '../../common/utils/product-availability.util';
 import { MEDIA_SELECT, mapProductMedia } from '../../common/utils/media.util';
 import { AuditService } from '../audit/audit.service';
 import { CreateProductDto, ReplaceSpecsDto, UpdateProductDto } from './dto/product.dto';
@@ -21,13 +25,13 @@ export class ProductsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
+    private readonly cache: CacheService,
     private readonly audit: AuditService,
   ) {}
 
   /** Xoá cache danh sách khi dữ liệu sản phẩm thay đổi. */
   private async invalidateListCache() {
-    await this.redis.delByPattern('cache:products:*');
+    await this.cache.delByPattern('cache:products:*');
   }
 
   async create(dto: CreateProductDto) {
@@ -59,8 +63,8 @@ export class ProductsService {
 
   async findAll(query: QueryProductDto) {
     const cacheKey = `cache:products:list:${JSON.stringify(query)}`;
-    // withCachedList lo việc dựng lại PaginatedResult sau khi lấy từ cache (xem RedisService).
-    return this.redis.withCachedList(cacheKey, ProductsService.LIST_TTL, () =>
+    // withCachedList lo việc dựng lại PaginatedResult sau khi lấy từ cache (xem CacheService).
+    return this.cache.withCachedList(cacheKey, ProductsService.LIST_TTL, () =>
       this.findAllUncached(query),
     );
   }
@@ -77,10 +81,35 @@ export class ProductsService {
     if (query.category) where.category = { slug: query.category };
     if (query.brandId) where.brandId = query.brandId;
     if (query.search) where.name = { contains: query.search, mode: 'insensitive' };
-    if (query.minPrice != null || query.maxPrice != null) {
-      where.basePriceNew = {};
-      if (query.minPrice != null) where.basePriceNew.gte = query.minPrice;
-      if (query.maxPrice != null) where.basePriceNew.lte = query.maxPrice;
+    // Lọc khoảng giá và sắp xếp theo giá đều chạy trên GIÁ BÁN THỰC TẾ của máy cũ còn hàng
+    // (`priceFrom`) — đúng con số hiển thị trên thẻ sản phẩm. Trước đây cả hai dùng
+    // `basePriceNew` (giá máy MỚI) nên kết quả không khớp giá người dùng nhìn thấy.
+    const priceDir = priceSortDirection(query.sort);
+    const hasRange = query.minPrice != null || query.maxPrice != null;
+    if (priceDir || hasRange) {
+      const { ids, total } = await pageProductIdsByPrice(
+        this.prisma,
+        where,
+        { direction: priceDir, minPrice: query.minPrice, maxPrice: query.maxPrice },
+        query.skip,
+        query.limit,
+      );
+      const rows = ids.length
+        ? await this.prisma.product.findMany({
+            where: { id: { in: ids } },
+            include: PRODUCT_LIST_INCLUDE,
+          })
+        : [];
+      // findMany không giữ thứ tự của `in`, phải xếp lại theo đúng thứ tự đã sắp.
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      const ordered = ids.map((id) => byId.get(id)).filter((r): r is (typeof rows)[number] => !!r);
+      const withPrice = await attachAvailability(this.prisma, ordered);
+      return paginate(
+        withPrice.map((p) => mapProductMedia(p)),
+        total,
+        query.page,
+        query.limit,
+      );
     }
 
     const orderBy = buildProductOrderBy(query.sort);
@@ -91,12 +120,7 @@ export class ProductsService {
         orderBy,
         skip: query.skip,
         take: query.limit,
-        include: {
-          brand: { select: { id: true, name: true, slug: true } },
-          category: { select: { id: true, name: true, slug: true } },
-          thumbnailMedia: MEDIA_SELECT,
-          _count: { select: { devices: { where: { status: 'IN_STOCK' } } } },
-        },
+        include: PRODUCT_LIST_INCLUDE,
       }),
       this.prisma.product.count({ where }),
     ]);

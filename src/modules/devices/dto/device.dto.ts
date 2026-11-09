@@ -74,7 +74,7 @@ export class QueryDeviceDto extends PaginationQueryDto {
   @IsEnum(DeviceCondition)
   condition?: DeviceCondition;
 
-  @ApiPropertyOptional({ description: 'Tìm theo Serial/IMEI' })
+  @ApiPropertyOptional({ description: 'Tìm theo Serial/IMEI hoặc tên sản phẩm' })
   @IsOptional()
   @IsString()
   search?: string;

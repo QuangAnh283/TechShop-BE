@@ -35,11 +35,6 @@ export default () => ({
     url: process.env.VNPAY_URL ?? 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html',
     returnUrl: process.env.VNPAY_RETURN_URL ?? 'http://localhost:3002/payment/vnpay-return',
   },
-  redis: {
-    host: process.env.REDIS_HOST ?? 'localhost',
-    port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-    password: process.env.REDIS_PASSWORD || undefined,
-  },
   media: {
     // Upload ảnh lưu vào <uploadsDir>/media, giới hạn dung lượng mỗi file (MB).
     maxSizeMb: parseInt(process.env.MEDIA_MAX_SIZE_MB ?? '5', 10),

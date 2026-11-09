@@ -30,27 +30,30 @@ export interface ImportDeviceOptions {
 }
 
 /**
- * NGUỒN DUY NHẤT của luật trạng thái thu cũ (chốt 2026-11-09).
- * Mọi thao tác đổi trạng thái (assign / inspect / respond / updateStatus) PHẢI đi qua
- * bảng này — không guard inline tự chế nữa.
+ * NGUỒN DUY NHẤT của luật trạng thái thu cũ (nghiệp vụ chốt 2026-11-09).
+ * Mọi thao tác đổi trạng thái (inspect / respond / updateStatus) PHẢI đi qua bảng này
+ * — không guard inline tự chế nữa.
  *
- *  PENDING ─nhận xử lý→ RECEIVED ─kiểm định+chốt giá→ OFFERED ─khách đồng ý→ ACCEPTED → COMPLETED
- *  OFFERED → OFFERED  (KTV báo giá lại khi khách chưa phản hồi)
- *  Nhánh hỏng: SHOP_REJECTED (cửa hàng từ chối) / CUSTOMER_DECLINED (khách từ chối giá).
- *  Trả máy KHÔNG phải trạng thái — là mốc `returnedAt` (xem returnDevice), để giữ được lý do từ chối.
+ * Khách KHÔNG gửi máy đi trước. KTV xem yêu cầu trên hệ thống rồi quyết định:
+ *
+ *   PENDING ─KTV báo giá lại──→ OFFERED ─khách đồng ý──→ ACCEPTED ─giao dịch xong──→ COMPLETED
+ *   PENDING ─KTV đồng ý luôn giá ước tính──────────────→ ACCEPTED
+ *   OFFERED → OFFERED            (KTV sửa báo giá khi khách chưa phản hồi)
+ *   OFFERED → CUSTOMER_DECLINED  (khách chê giá ⇒ yêu cầu không được thực hiện)
+ *   PENDING/OFFERED → SHOP_REJECTED (cửa hàng từ chối thu)
+ *
+ * Vào ACCEPTED là lúc báo khách mang máy tới cơ sở; COMPLETED là khi giao dịch trực tiếp
+ * xong và máy được nhập kho. Không có trạng thái "đã nhận máy" vì cửa hàng không bao giờ
+ * giữ máy của khách ở giai đoạn chờ.
  */
 const TI_TRANSITIONS: Record<TradeInStatus, TradeInStatus[]> = {
-  PENDING: ['RECEIVED', 'SHOP_REJECTED'],
-  RECEIVED: ['OFFERED', 'SHOP_REJECTED'],
+  PENDING: ['OFFERED', 'ACCEPTED', 'SHOP_REJECTED'],
   OFFERED: ['OFFERED', 'ACCEPTED', 'CUSTOMER_DECLINED', 'SHOP_REJECTED'],
   ACCEPTED: ['COMPLETED'],
   COMPLETED: [],
   SHOP_REJECTED: [],
   CUSTOMER_DECLINED: [],
 };
-
-/** Hai trạng thái kết thúc kiểu "hỏng" — nếu máy đã nhận (receivedAt) thì cần trả lại. */
-const TI_REJECTED_STATES: TradeInStatus[] = ['SHOP_REJECTED', 'CUSTOMER_DECLINED'];
 
 @Injectable()
 export class TradeInService {
@@ -267,17 +270,16 @@ export class TradeInService {
   }
 
   // ================= Technician inspection (PART 10.5) =================
-  /** Nhận xử lý: gán KTV, và nếu đang PENDING thì nhận máy về (→ RECEIVED, ghi receivedAt). */
+  /**
+   * Nhận xử lý: chỉ gán kỹ thuật viên phụ trách, KHÔNG đổi trạng thái.
+   * (Trước đây bước này đẩy sang RECEIVED = "đã nhận máy" — sai, vì khách chưa gửi máy đi:
+   * máy chỉ được mang tới cơ sở sau khi hai bên chốt giá.)
+   */
   async assign(id: string, technicianId: string) {
-    const req = await this.getRequest(id);
-    const toReceived = req.status === TradeInStatus.PENDING;
-    if (toReceived) this.assertTransition(req.status, TradeInStatus.RECEIVED);
+    await this.getRequest(id);
     const updated = await this.prisma.tradeInRequest.update({
       where: { id },
-      data: {
-        assignedTechnicianId: technicianId,
-        ...(toReceived ? { status: TradeInStatus.RECEIVED, receivedAt: new Date() } : {}),
-      },
+      data: { assignedTechnicianId: technicianId },
       include: this.requestInclude(),
     });
     return this.mapRequest(updated);
@@ -285,8 +287,8 @@ export class TradeInService {
 
   /**
    * Kiểm định + chốt giá (gộp 1 bước) → OFFERED.
-   * Hợp lệ khi đang RECEIVED (lần đầu) hoặc OFFERED (báo giá lại, khách chưa phản hồi) —
-   * cả hai đều nằm trong `TI_TRANSITIONS[...] → OFFERED`.
+   * Hợp lệ khi đang PENDING (báo giá lần đầu) hoặc OFFERED (sửa báo giá khi khách chưa
+   * phản hồi) — cả hai đều nằm trong `TI_TRANSITIONS[...] → OFFERED`.
    */
   async inspect(id: string, technicianId: string, dto: InspectDto, actor?: AuditActor) {
     const req = await this.getRequest(id);
@@ -326,7 +328,11 @@ export class TradeInService {
     await this.audit.log(actor, 'TRADEIN_INSPECT', {
       entity: 'TradeInRequest',
       entityId: id,
-      meta: { from: req.status, adjustedPrice: dto.adjustedPrice, actualCondition: dto.actualCondition },
+      meta: {
+        from: req.status,
+        adjustedPrice: dto.adjustedPrice,
+        actualCondition: dto.actualCondition,
+      },
     });
     return this.mapRequest(result);
   }
@@ -336,6 +342,12 @@ export class TradeInService {
   async respond(id: string, user: AuthUser, accept: boolean) {
     const req = await this.getRequest(id);
     if (req.userId !== user.id) throw new ForbiddenException('Không phải yêu cầu của bạn');
+    // Bắt buộc đang OFFERED. Bảng luật cho phép cả PENDING → ACCEPTED, nhưng đó là đường
+    // của KTV (đồng ý luôn giá ước tính); không chặn ở đây thì khách tự duyệt yêu cầu
+    // của chính mình khi cửa hàng còn chưa xem tới.
+    if (req.status !== TradeInStatus.OFFERED) {
+      throw new BadRequestException('Yêu cầu chưa có báo giá để phản hồi');
+    }
     const next = accept ? TradeInStatus.ACCEPTED : TradeInStatus.CUSTOMER_DECLINED;
     this.assertTransition(req.status, next);
     const updated = await this.prisma.tradeInRequest.update({
@@ -376,8 +388,12 @@ export class TradeInService {
       where: { id },
       data: {
         status: next,
-        // Nếu chuyển sang RECEIVED qua đường này cũng ghi mốc nhận máy (phòng hờ).
-        ...(next === TradeInStatus.RECEIVED ? { receivedAt: new Date() } : {}),
+        // KTV chấp nhận thẳng từ PENDING (không sửa báo giá) ⇒ giá chốt chính là giá ước
+        // tính khách đã thấy lúc gửi yêu cầu. Không ghi lại thì đơn vào ACCEPTED mà
+        // không có giá nào được chốt.
+        ...(next === TradeInStatus.ACCEPTED && req.finalOfferPrice == null
+          ? { finalOfferPrice: req.estimatedPrice }
+          : {}),
       },
       include: this.requestInclude(),
     });
@@ -385,41 +401,6 @@ export class TradeInService {
       entity: 'TradeInRequest',
       entityId: id,
       meta: { from: req.status, to: next },
-    });
-    return this.mapRequest(updated);
-  }
-
-  /**
-   * Đánh dấu đã trả máy lại cho khách (khi deal đổ bể mà máy đã nhận về).
-   * Không phải một trạng thái riêng — chỉ ghi `returnedAt` — để status vẫn giữ được
-   * LÝ DO từ chối (SHOP_REJECTED vs CUSTOMER_DECLINED) cho báo cáo. Idempotent.
-   */
-  async returnDevice(id: string, actor?: AuditActor) {
-    const req = await this.getRequest(id);
-    if (!TI_REJECTED_STATES.includes(req.status)) {
-      throw new BadRequestException('Chỉ trả máy cho yêu cầu đã bị từ chối');
-    }
-    if (!req.receivedAt) {
-      throw new BadRequestException('Yêu cầu này chưa từng nhận máy nên không có gì để trả');
-    }
-    if (req.returnedAt) {
-      // Đã trả rồi — trả nguyên trạng, không ghi đè mốc thời gian.
-      return this.mapRequest(
-        await this.prisma.tradeInRequest.findUniqueOrThrow({
-          where: { id },
-          include: this.requestInclude(),
-        }),
-      );
-    }
-    const updated = await this.prisma.tradeInRequest.update({
-      where: { id },
-      data: { returnedAt: new Date() },
-      include: this.requestInclude(),
-    });
-    await this.audit.log(actor, 'TRADEIN_RETURN', {
-      entity: 'TradeInRequest',
-      entityId: id,
-      meta: { status: req.status },
     });
     return this.mapRequest(updated);
   }

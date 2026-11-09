@@ -2,9 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { paginate } from '../../common/dto/pagination.dto';
-import { buildProductOrderBy } from '../../common/utils/product-sort.util';
-import { attachAvailability } from '../../common/utils/product-availability.util';
-import { MEDIA_SELECT, mapProductMedia } from '../../common/utils/media.util';
+import { buildProductOrderBy, priceSortDirection } from '../../common/utils/product-sort.util';
+import {
+  attachAvailability,
+  pageProductIdsByPrice,
+  PRODUCT_LIST_INCLUDE,
+} from '../../common/utils/product-availability.util';
+import { mapProductMedia } from '../../common/utils/media.util';
 import { SearchQueryDto } from './dto/search.dto';
 
 @Injectable()
@@ -32,14 +36,11 @@ export class SearchService {
 
     if (query.category) where.category = { slug: query.category };
     if (query.brandId) where.brandId = query.brandId;
-    if (query.minPrice != null || query.maxPrice != null) {
-      where.basePriceNew = {};
-      if (query.minPrice != null) where.basePriceNew.gte = query.minPrice;
-      if (query.maxPrice != null) where.basePriceNew.lte = query.maxPrice;
-    }
     if (query.condition) {
       where.devices = { some: { status: 'IN_STOCK', deletedAt: null, condition: query.condition } };
     }
+    // Khoảng giá KHÔNG lọc ở đây: nó so trên `priceFrom` (giá máy cũ rẻ nhất còn hàng) —
+    // một aggregate mà Prisma where không với tới. Xem pageProductIdsByPrice bên dưới.
     // Lọc theo spec (RAM / bộ nhớ) — khớp tên spec gần đúng + giá trị.
     if (query.ram) {
       andConditions.push({
@@ -63,6 +64,33 @@ export class SearchService {
     }
     if (andConditions.length) where.AND = andConditions;
 
+    const priceDir = priceSortDirection(query.sort);
+    const hasRange = query.minPrice != null || query.maxPrice != null;
+    if (priceDir || hasRange) {
+      const { ids, total } = await pageProductIdsByPrice(
+        this.prisma,
+        where,
+        { direction: priceDir, minPrice: query.minPrice, maxPrice: query.maxPrice },
+        query.skip,
+        query.limit,
+      );
+      const rows = ids.length
+        ? await this.prisma.product.findMany({
+            where: { id: { in: ids } },
+            include: PRODUCT_LIST_INCLUDE,
+          })
+        : [];
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      const ordered = ids.map((id) => byId.get(id)).filter((r): r is (typeof rows)[number] => !!r);
+      const withPrice = await attachAvailability(this.prisma, ordered);
+      return paginate(
+        withPrice.map((p) => mapProductMedia(p)),
+        total,
+        query.page,
+        query.limit,
+      );
+    }
+
     const orderBy = buildProductOrderBy(query.sort);
 
     const [items, total] = await this.prisma.$transaction([
@@ -71,12 +99,7 @@ export class SearchService {
         orderBy,
         skip: query.skip,
         take: query.limit,
-        include: {
-          brand: { select: { id: true, name: true, slug: true } },
-          category: { select: { id: true, name: true, slug: true } },
-          thumbnailMedia: MEDIA_SELECT,
-          _count: { select: { devices: { where: { status: 'IN_STOCK' } } } },
-        },
+        include: PRODUCT_LIST_INCLUDE,
       }),
       this.prisma.product.count({ where }),
     ]);
