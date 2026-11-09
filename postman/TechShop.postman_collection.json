@@ -1,0 +1,152 @@
+{
+  "info": {
+    "name": "TechShop API",
+    "description": "Collection test API TechShop. Chạy 'Auth > Login (admin)' trước để tự lưu accessToken.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "deviceId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"Pass@123\",\n  \"fullName\": \"New User\"\n}" }
+          }
+        },
+        {
+          "name": "Login (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const d = pm.response.json().data;",
+                  "if (d && d.accessToken) { pm.collectionVariables.set('accessToken', d.accessToken); }",
+                  "pm.test('login ok', () => pm.response.code === 200);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@techshop.local\",\n  \"password\": \"Admin@123\"\n}" }
+          }
+        },
+        {
+          "name": "Verify email",
+          "request": { "method": "GET", "url": "{{baseUrl}}/auth/verify-email?token=PASTE_TOKEN" }
+        },
+        {
+          "name": "Resend verification",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/resend-verification",
+            "body": { "mode": "raw", "raw": "{ \"email\": \"newuser@example.com\" }" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalog",
+      "item": [
+        { "name": "Products (list)", "request": { "method": "GET", "url": "{{baseUrl}}/products?page=1&limit=12" } },
+        { "name": "Product detail", "request": { "method": "GET", "url": "{{baseUrl}}/products/{{idOrSlug}}" } },
+        { "name": "Categories", "request": { "method": "GET", "url": "{{baseUrl}}/categories" } },
+        { "name": "Brands", "request": { "method": "GET", "url": "{{baseUrl}}/brands" } }
+      ]
+    },
+    {
+      "name": "Search",
+      "item": [
+        { "name": "Search FTS", "request": { "method": "GET", "url": "{{baseUrl}}/search?q=iphone&sort=price_desc" } }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Add item",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/cart/items",
+            "body": { "mode": "raw", "raw": "{ \"deviceId\": \"{{deviceId}}\" }" }
+          }
+        },
+        { "name": "Get cart", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/cart" } },
+        { "name": "Validate cart", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/cart/validate" } }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Checkout",
+          "event": [
+            { "listen": "test", "script": { "exec": ["const d=pm.response.json().data; if(d&&d.id){pm.collectionVariables.set('orderId', d.id);}"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/orders/checkout",
+            "body": { "mode": "raw", "raw": "{}" }
+          }
+        },
+        { "name": "My orders", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/orders" } }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create VNPay URL",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/payments/{{orderId}}/vnpay/create"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trade-in",
+      "item": [
+        { "name": "Questions", "request": { "method": "GET", "url": "{{baseUrl}}/trade-in/questions" } },
+        {
+          "name": "Estimate",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/trade-in/estimate",
+            "body": { "mode": "raw", "raw": "{\n  \"productId\": \"PASTE_PRODUCT_ID\",\n  \"optionIds\": []\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        { "name": "Dashboard", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/admin/dashboard" } }
+      ]
+    }
+  ]
+}

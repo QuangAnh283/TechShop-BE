@@ -1,0 +1,590 @@
+// ============================================================
+//  TechShop — Prisma schema (PART 1.2)
+//  Mô hình đầy đủ cả dự án. Giá lưu kiểu Int theo đơn vị VNĐ.
+//  Phân biệt rõ Product (model/SKU) vs Device (máy vật lý, stock=1).
+// ============================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===================== ENUMS =====================
+enum UserRole {
+  CUSTOMER
+  TECHNICIAN
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BANNED
+}
+
+enum DeviceCondition {
+  LIKE_NEW
+  EXCELLENT
+  GOOD
+  FAIR
+}
+
+enum DeviceStatus {
+  IN_STOCK
+  RESERVED
+  SOLD
+  INSPECTING
+  DEFECTIVE
+}
+
+enum WarrantyStatus {
+  ACTIVE
+  EXPIRED
+  VOID
+}
+
+enum InventoryTxnType {
+  IMPORT
+  EXPORT
+  ADJUST
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPING
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  VNPAY
+  COD
+}
+
+enum TradeInStatus {
+  PENDING
+  RECEIVED
+  OFFERED
+  ACCEPTED
+  COMPLETED
+  SHOP_REJECTED // cửa hàng từ chối thu máy
+  CUSTOMER_DECLINED // khách từ chối giá chốt
+}
+
+// ===================== USERS & AUTH =====================
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  passwordHash  String
+  fullName      String
+  phone         String?
+  role          UserRole   @default(CUSTOMER)
+  status        UserStatus @default(ACTIVE)
+  emailVerified Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?
+
+  // Nhóm quyền nghiệp vụ (chỉ dùng cho nhân viên). ADMIN mặc nhiên có mọi quyền,
+  // CUSTOMER không bao giờ được gán nhóm.
+  permissionGroupId String?
+  permissionGroup   PermissionGroup? @relation(fields: [permissionGroupId], references: [id], onDelete: SetNull)
+
+  addresses        Address[]
+  refreshTokens    RefreshToken[]
+  passwordOtps     PasswordResetOtp[]
+  emailTokens      EmailVerificationToken[]
+  cart             Cart?
+  orders           Order[]
+  reviews          Review[]
+  tradeInRequests  TradeInRequest[]         @relation("RequestOwner")
+  assignedTradeIns TradeInRequest[]         @relation("AssignedTechnician")
+  repairs          RepairHistory[]          @relation("TechnicianRepairs")
+  inspections      TradeInInspection[]      @relation("TechnicianInspections")
+  inventoryTxns    InventoryTxn[]
+  uploadedMedia    MediaAsset[]
+
+  @@index([role])
+  @@index([permissionGroupId])
+}
+
+/// Nhóm quyền nghiệp vụ, do admin tự tạo/sửa trên giao diện (không cần sửa code).
+/// `permissions` chứa các mã quyền khai báo ở `src/common/authz/permissions.ts` —
+/// mã quyền nằm trong code vì nó chỉ có nghĩa khi có endpoint tương ứng; thứ admin
+/// tạo ra lúc chạy là NHÓM, nên chỉ nhóm mới nằm trong DB.
+model PermissionGroup {
+  id          String    @id // id cố định cho nhóm preset (vd "grp_sales")
+  code        String    @unique // slug ổn định, dùng để upsert preset
+  name        String // nhãn tiếng Việt hiển thị
+  description String?
+  permissions String[] // mảng mã quyền
+  isSystem    Boolean   @default(false) // nhóm preset: không cho xóa/đổi mã
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  members User[]
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName  String
+  phone     String
+  line      String
+  ward      String?
+  district  String?
+  province  String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetOtp {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  otpHash   String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ===================== CATALOG =====================
+model Category {
+  id        String     @id @default(cuid())
+  name      String
+  slug      String     @unique
+  parentId  String?
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryTree")
+  sortOrder Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  products         Product[]
+  tradeInQuestions TradeInQuestion[]
+}
+
+model Brand {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  logoMediaId String?
+  logoMedia   MediaAsset? @relation(fields: [logoMediaId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  products Product[]
+}
+
+// Media upload (lưu local disk uploads/media/<id>.<ext>, serve qua /uploads).
+model MediaAsset {
+  id           String   @id @default(cuid())
+  path         String   @unique // đường dẫn public, vd "/uploads/media/<id>.webp"
+  mime         String
+  size         Int
+  width        Int?
+  height       Int?
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  productThumbnails Product[]
+  productImages     ProductImage[]
+  brandLogos        Brand[]
+  evidences         TradeInEvidence[]
+}
+
+model Product {
+  id               String      @id @default(cuid())
+  categoryId       String
+  category         Category    @relation(fields: [categoryId], references: [id])
+  brandId          String
+  brand            Brand       @relation(fields: [brandId], references: [id])
+  name             String
+  slug             String      @unique
+  description      String?
+  thumbnailMediaId String?
+  thumbnailMedia   MediaAsset? @relation(fields: [thumbnailMediaId], references: [id])
+  basePriceNew     Int? // giá tham khảo máy mới (VNĐ)
+  isActive         Boolean     @default(true)
+  sourceUrl        String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  deletedAt        DateTime?
+
+  images          ProductImage[]
+  specs           ProductSpec[]
+  devices         Device[]
+  reviews         Review[]
+  orderItems      OrderItem[]
+  tradeInRule     TradeInRule?
+  tradeInRequests TradeInRequest[]
+
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([isActive])
+}
+
+model ProductImage {
+  id        String      @id @default(cuid())
+  productId String
+  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  mediaId   String?
+  media     MediaAsset? @relation(fields: [mediaId], references: [id])
+  sortOrder Int         @default(0)
+
+  @@index([productId])
+}
+
+model ProductSpec {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String // VD "RAM"
+  value     String // VD "8GB"
+  sortOrder Int     @default(0)
+
+  @@index([productId])
+  @@index([name])
+}
+
+// ===================== DEVICE & INVENTORY =====================
+model Warehouse {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  createdAt DateTime @default(now())
+
+  devices       Device[]
+  inventoryTxns InventoryTxn[]
+}
+
+model Device {
+  id            String          @id @default(cuid())
+  productId     String
+  product       Product         @relation(fields: [productId], references: [id])
+  serialImei    String          @unique
+  condition     DeviceCondition
+  batteryHealth Int? // %
+  color         String?
+  storage       String?
+  purchasePrice Int? // giá nhập (VNĐ)
+  sellingPrice  Int // giá bán (VNĐ)
+  status        DeviceStatus    @default(IN_STOCK)
+  warehouseId   String?
+  warehouse     Warehouse?      @relation(fields: [warehouseId], references: [id])
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  deletedAt     DateTime?
+
+  warranty      Warranty?
+  repairs       RepairHistory[]
+  inventoryTxns InventoryTxn[]
+  cartItems     CartItem[]
+  orderItem     OrderItem?
+
+  @@index([productId])
+  @@index([status])
+}
+
+model Warranty {
+  id        String         @id @default(cuid())
+  deviceId  String         @unique
+  device    Device         @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  startDate DateTime
+  endDate   DateTime
+  status    WarrantyStatus @default(ACTIVE)
+  note      String?
+}
+
+model RepairHistory {
+  id            String   @id @default(cuid())
+  deviceId      String
+  device        Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  technicianId  String?
+  technician    User?    @relation("TechnicianRepairs", fields: [technicianId], references: [id])
+  repairDate    DateTime
+  description   String
+  cost          Int?
+  partsReplaced String?
+  createdAt     DateTime @default(now())
+
+  @@index([deviceId])
+}
+
+model InventoryTxn {
+  id            String           @id @default(cuid())
+  deviceId      String
+  device        Device           @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  type          InventoryTxnType
+  warehouseId   String?
+  warehouse     Warehouse?       @relation(fields: [warehouseId], references: [id])
+  performedById String?
+  performedBy   User?            @relation(fields: [performedById], references: [id])
+  note          String?
+  createdAt     DateTime         @default(now())
+
+  @@index([deviceId])
+}
+
+// ===================== CART & ORDER =====================
+model Cart {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items CartItem[]
+}
+
+model CartItem {
+  id       String   @id @default(cuid())
+  cartId   String
+  cart     Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  deviceId String
+  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  addedAt  DateTime @default(now())
+
+  // Giỏ hàng KHÔNG giữ chỗ: nhiều khách có thể cùng để 1 device trong giỏ.
+  // Giữ chỗ chỉ xảy ra ở tầng Order (Device -> RESERVED). Unique theo (cartId, deviceId)
+  // chỉ để chặn thêm trùng trong cùng một giỏ (stock=1, không quantity).
+  @@unique([cartId, deviceId])
+  @@index([cartId])
+  @@index([deviceId])
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  orderNumber String      @unique
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  status      OrderStatus @default(PENDING)
+  subtotal    Int
+  shippingFee Int         @default(0)
+  total       Int
+  addressId   String?
+  address     Address?    @relation(fields: [addressId], references: [id])
+  note        String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  items   OrderItem[]
+  payment Payment?
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id           String  @id @default(cuid())
+  orderId      String
+  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  deviceId     String  @unique // 1 device chỉ bán 1 lần (chống bán trùng)
+  device       Device  @relation(fields: [deviceId], references: [id])
+  productId    String
+  product      Product @relation(fields: [productId], references: [id])
+  unitPrice    Int // chốt giá tại thời điểm mua
+  nameSnapshot String // chốt tên sản phẩm tại thời điểm mua
+
+  @@index([orderId])
+}
+
+model Payment {
+  id             String          @id @default(cuid())
+  orderId        String          @unique
+  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider       PaymentProvider @default(VNPAY)
+  amount         Int
+  status         PaymentStatus   @default(PENDING)
+  transactionRef String?         @unique
+  providerData   Json?
+  paidAt         DateTime?
+  refundedAt     DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+// ===================== AUDIT LOG =====================
+// Nhật ký quản trị các thao tác nhạy cảm (đổi quyền, sửa giá, trạng thái đơn, hoàn tiền,
+// trạng thái thu cũ...). actorEmail lưu DENORMALIZED để log bất biến, không vỡ khi user bị xóa.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorEmail String?
+  action     String // mã hành động: ORDER_REFUND, PRICE_UPDATE, ROLE_CHANGE, GROUP_UPDATE...
+  entity     String? // loại đối tượng: Order, Product, Device, User, PermissionGroup, TradeInRequest
+  entityId   String?
+  meta       Json? // chi tiết (giá cũ/mới, trạng thái, lý do...)
+  createdAt  DateTime @default(now())
+
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+  @@index([actorId])
+}
+
+// ===================== TRADE-IN =====================
+model TradeInRule {
+  id        String   @id @default(cuid())
+  productId String   @unique
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  basePrice Int // giá gốc thu mua (VNĐ)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TradeInQuestion {
+  id         String    @id @default(cuid())
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+  text       String
+  sortOrder  Int       @default(0)
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+
+  options TradeInOption[]
+  answers TradeInAnswer[]
+
+  @@index([categoryId])
+}
+
+model TradeInOption {
+  id              String          @id @default(cuid())
+  questionId      String
+  question        TradeInQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  label           String
+  priceAdjustment Int // số tiền cộng/trừ (âm = trừ), VNĐ
+  sortOrder       Int             @default(0)
+
+  answers TradeInAnswer[]
+
+  @@index([questionId])
+}
+
+model TradeInRequest {
+  id                   String        @id @default(cuid())
+  userId               String
+  user                 User          @relation("RequestOwner", fields: [userId], references: [id])
+  productId            String
+  product              Product       @relation(fields: [productId], references: [id])
+  estimatedPrice       Int
+  finalOfferPrice      Int?
+  status               TradeInStatus @default(PENDING)
+  // Thông tin máy thực tế khách đang có (C2)
+  imei                 String?
+  deviceDescription    String?
+  assignedTechnicianId String?
+  assignedTechnician   User?         @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id])
+  note                 String?
+  // Mốc thời gian vòng đời: nhận máy về (PENDING→RECEIVED) và trả máy lại cho khách
+  // (khi deal đổ bể sau khi đã nhận). receivedAt != null ⇒ máy từng ở cửa hàng ⇒ cần trả.
+  receivedAt           DateTime?
+  returnedAt           DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  answers    TradeInAnswer[]
+  inspection TradeInInspection?
+
+  @@index([userId])
+  @@index([status])
+}
+
+model TradeInAnswer {
+  id         String          @id @default(cuid())
+  requestId  String
+  request    TradeInRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  questionId String
+  question   TradeInQuestion @relation(fields: [questionId], references: [id])
+  optionId   String
+  option     TradeInOption   @relation(fields: [optionId], references: [id])
+
+  @@index([requestId])
+}
+
+model TradeInInspection {
+  id              String           @id @default(cuid())
+  requestId       String           @unique
+  request         TradeInRequest   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  technicianId    String?
+  technician      User?            @relation("TechnicianInspections", fields: [technicianId], references: [id])
+  actualCondition DeviceCondition?
+  adjustedPrice   Int
+  note            String?
+  createdAt       DateTime         @default(now())
+
+  evidences TradeInEvidence[]
+}
+
+model TradeInEvidence {
+  id           String            @id @default(cuid())
+  inspectionId String
+  inspection   TradeInInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  mediaId      String?
+  media        MediaAsset?       @relation(fields: [mediaId], references: [id])
+
+  @@index([inspectionId])
+}
+
+// ===================== REVIEW =====================
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  rating    Int // 1..5
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+}
