@@ -1,11 +1,11 @@
 -- TechShop seed data (data-only). Import SAU khi đã chạy prisma migrate deploy.
--- Sinh tự động bởi prisma/dump.ts lúc 2026-11-09T08:43:49.108Z
+-- Sinh tự động bởi prisma/dump.ts lúc 2026-11-09T09:50:36.181Z
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict enYAFqxFJYjbeOiR4I6DYOxVKurlh8nt12SxiI4Naxwde5oo0lr3nPWxg45VRqQ
+\restrict YtAjEe4tepfaeirOcm4cbBTo7bgkasXfjbaF7g7axgHEZhdz9IB3p2PD4htFwsn
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -32,9 +32,9 @@ ALTER TABLE public."PermissionGroup" DISABLE TRIGGER ALL;
 
 INSERT INTO public."PermissionGroup" (id, code, name, description, permissions, "isSystem", "createdAt", "updatedAt", "deletedAt") VALUES ('grp_sales', 'SALES', 'Nhân viên bán hàng', 'Tiếp nhận và xử lý đơn hàng, không đụng tới giá và kho.', '{order.read_all,order.process,order.cancel_any,product.read,inventory.read}', true, '2026-10-20 09:26:07.384', '2026-10-20 09:26:07.384', NULL);
 INSERT INTO public."PermissionGroup" (id, code, name, description, permissions, "isSystem", "createdAt", "updatedAt", "deletedAt") VALUES ('grp_warehouse', 'WAREHOUSE', 'Nhân viên kho', 'Nhập xuất kho, bảo hành, sửa chữa. Không được sửa giá.', '{inventory.read,inventory.manage,warehouse.manage,device.warranty,device.repair,media.upload,product.read}', true, '2026-10-20 09:26:07.39', '2026-10-20 09:26:07.39', NULL);
-INSERT INTO public."PermissionGroup" (id, code, name, description, permissions, "isSystem", "createdAt", "updatedAt", "deletedAt") VALUES ('grp_manager', 'MANAGER', 'Quản lý cửa hàng', 'Toàn bộ nghiệp vụ, gồm cả các thao tác chạm tiền. Không quản trị tài khoản.', '{product.read,product.manage,product.delete,catalog.manage,price.update,inventory.read,inventory.manage,warehouse.manage,device.warranty,device.repair,media.upload,media.delete,review.delete_any,order.read_all,order.process,order.cancel_any,tradein.read,tradein.assign,tradein.inspect,tradein.complete,tradein.config,report.read}', true, '2026-10-20 09:26:07.398', '2026-10-20 09:26:07.398', NULL);
 INSERT INTO public."PermissionGroup" (id, code, name, description, permissions, "isSystem", "createdAt", "updatedAt", "deletedAt") VALUES ('grp_content', 'CONTENT', 'Biên tập nội dung', 'Quản lý sản phẩm, danh mục, hình ảnh và đánh giá. Không được sửa giá.', '{product.read,product.manage,catalog.manage,media.upload,media.delete,review.delete_any}', true, '2026-10-20 09:26:07.396', '2026-11-09 08:05:22.679', NULL);
 INSERT INTO public."PermissionGroup" (id, code, name, description, permissions, "isSystem", "createdAt", "updatedAt", "deletedAt") VALUES ('grp_technician', 'TECHNICIAN', 'Kỹ thuật viên thu cũ', 'Xử lý yêu cầu thu cũ từ lúc tiếp nhận tới lúc hoàn tất; quản lý kho kỹ thuật.', '{tradein.read,tradein.assign,tradein.inspect,inventory.read,inventory.manage,device.warranty,device.repair,media.upload,tradein.complete}', true, '2026-10-20 09:26:07.393', '2026-10-20 09:26:07.393', NULL);
+INSERT INTO public."PermissionGroup" (id, code, name, description, permissions, "isSystem", "createdAt", "updatedAt", "deletedAt") VALUES ('grp_manager', 'MANAGER', 'Quản lý cửa hàng', 'Toàn bộ nghiệp vụ, gồm cả các thao tác chạm tiền. Không quản trị tài khoản.', '{product.read,product.manage,product.delete,catalog.manage,price.update,inventory.read,inventory.manage,warehouse.manage,device.warranty,device.repair,media.upload,media.delete,review.delete_any,order.read_all,order.process,order.cancel_any,tradein.read,tradein.assign,tradein.inspect,tradein.complete,tradein.config,report.read}', true, '2026-10-20 09:26:07.398', '2026-11-09 08:53:27.158', NULL);
 
 
 ALTER TABLE public."PermissionGroup" ENABLE TRIGGER ALL;
@@ -911,7 +911,7 @@ INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryH
 INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzesdvt02nsn38w4l3bzj6g', 'cmuzesdvo02ncn38wb9qbbv9i', '392813594427071', 'EXCELLENT', 98, NULL, '36.59 Wh', 21250000, 25000000, 'IN_STOCK', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 10:43:55.337', '2026-10-20 09:26:33.345', NULL);
 INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzesduu02lqn38wl1vysbg4', 'cmuzesdup02lan38wgt3m7idk', '711325369770616', 'GOOD', 87, NULL, '28.93 Wh', 7280000, 8560000, 'IN_STOCK', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 10:43:55.303', '2026-10-20 09:26:33.621', NULL);
 INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzqslsq000un3ik594geuit', 'cmuzesdbh01lwn38wayt531df', '350000000000001', 'GOOD', NULL, NULL, NULL, 5000000, 6000000, 'IN_STOCK', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 16:20:00.986', '2026-10-20 09:28:08.262', NULL);
-INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzesdx902qmn38wo2wit4af', 'cmuzesdx402q6n38w51pu3ste', '969423463950169', 'FAIR', 83, NULL, '36.59 Wh', 17690000, 20810000, 'IN_STOCK', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 10:43:55.389', '2026-11-09 08:20:54.67', NULL);
+INSERT INTO public."Device" (id, "productId", "serialImei", condition, "batteryHealth", color, storage, "purchasePrice", "sellingPrice", status, "warehouseId", "createdAt", "updatedAt", "deletedAt") VALUES ('cmuzesdx902qmn38wo2wit4af', 'cmuzesdx402q6n38w51pu3ste', '969423463950169', 'FAIR', 83, NULL, '36.59 Wh', 17690000, 20810000, 'IN_STOCK', 'cmuzescem0004n38ws6xwsjc9', '2026-10-08 10:43:55.389', '2026-11-09 08:53:42.019', NULL);
 
 
 ALTER TABLE public."Device" ENABLE TRIGGER ALL;
@@ -1251,6 +1251,7 @@ ALTER TABLE public."Order" DISABLE TRIGGER ALL;
 INSERT INTO public."Order" (id, "orderNumber", "userId", status, subtotal, "shippingFee", total, "addressId", note, "createdAt", "updatedAt") VALUES ('cmv13szem000ln3yksbw8hgwn', 'ODMV13SZEKE600', 'cmuzescef0002n38wa5c9lgwu', 'CANCELLED', 20810000, 0, 20810000, 'cmw8yvp5a000qn3iwj0lx4pfg', NULL, '2026-10-09 15:11:59.807', '2026-10-09 15:12:30.334');
 INSERT INTO public."Order" (id, "orderNumber", "userId", status, subtotal, "shippingFee", total, "addressId", note, "createdAt", "updatedAt") VALUES ('cmv13s1ha0007n3ykct17ke3w', 'ODMV13S1H73B58', 'cmuzescef0002n38wa5c9lgwu', 'CANCELLED', 23360000, 0, 23360000, 'cmw8yvp5a000qn3iwj0lx4pfg', NULL, '2026-10-09 15:11:15.839', '2026-10-19 09:15:00.031');
 INSERT INTO public."Order" (id, "orderNumber", "userId", status, subtotal, "shippingFee", total, "addressId", note, "createdAt", "updatedAt") VALUES ('cmv13sxxi000en3ykxox2xc5r', 'ODMV13SXXFB494', 'cmuzescef0002n38wa5c9lgwu', 'CANCELLED', 32480000, 0, 32480000, 'cmw8yvp5a000qn3iwj0lx4pfg', NULL, '2026-10-09 15:11:57.894', '2026-10-19 09:15:00.042');
+INSERT INTO public."Order" (id, "orderNumber", "userId", status, subtotal, "shippingFee", total, "addressId", note, "createdAt", "updatedAt") VALUES ('cmw90p5ro000jn3voi2ju1eh4', 'ODMW90P5RND1D5', 'cmuzescef0002n38wa5c9lgwu', 'CANCELLED', 20810000, 0, 20810000, 'cmw8yvp5a000qn3iwj0lx4pfg', NULL, '2026-11-09 08:46:54.325', '2026-11-09 08:53:42.022');
 
 
 ALTER TABLE public."Order" ENABLE TRIGGER ALL;
@@ -1264,6 +1265,7 @@ ALTER TABLE public."OrderItem" DISABLE TRIGGER ALL;
 INSERT INTO public."OrderItem" (id, "orderId", "deviceId", "productId", "unitPrice", "nameSnapshot") VALUES ('cmv13s1ha0009n3ykc2mfrvon', 'cmv13s1ha0007n3ykct17ke3w', 'cmuzesdwj02p8n38wnaliryjp', 'cmuzesdwd02osn38wub8gjjxt', 23360000, 'iPad Air M4 13 inch 5G 128GB - Chính hãng Apple Việt Nam');
 INSERT INTO public."OrderItem" (id, "orderId", "deviceId", "productId", "unitPrice", "nameSnapshot") VALUES ('cmv13sxxi000gn3ykwv5ukrd4', 'cmv13sxxi000en3ykxox2xc5r', 'cmuzesdw902omn38w7qgrczqf', 'cmuzesdvz02o2n38wb630dv4j', 32480000, 'iPad Air M4 13 inch Wi-Fi 1TB - Chính hãng Apple Việt Nam');
 INSERT INTO public."OrderItem" (id, "orderId", "deviceId", "productId", "unitPrice", "nameSnapshot") VALUES ('cmv13szem000nn3yk6qscpf3z', 'cmv13szem000ln3yksbw8hgwn', 'cmuzesdx902qmn38wo2wit4af', 'cmuzesdx402q6n38w51pu3ste', 20810000, 'iPad Air M4 13 inch 5G 512GB - Chính hãng Apple Việt Nam');
+INSERT INTO public."OrderItem" (id, "orderId", "deviceId", "productId", "unitPrice", "nameSnapshot") VALUES ('cmw90p5ro000ln3vocgo52var', 'cmw90p5ro000jn3voi2ju1eh4', 'cmuzesdx902qmn38wo2wit4af', 'cmuzesdx402q6n38w51pu3ste', 20810000, 'iPad Air M4 13 inch 5G 512GB - Chính hãng Apple Việt Nam');
 
 
 ALTER TABLE public."OrderItem" ENABLE TRIGGER ALL;
@@ -1277,6 +1279,7 @@ ALTER TABLE public."Payment" DISABLE TRIGGER ALL;
 INSERT INTO public."Payment" (id, "orderId", provider, amount, status, "transactionRef", "providerData", "paidAt", "createdAt", "updatedAt", "refundedAt") VALUES ('cmv13szem000on3ykonyaxqgi', 'cmv13szem000ln3yksbw8hgwn', 'VNPAY', 20810000, 'FAILED', 'ODMV13SZEKE600-1791558727363', NULL, NULL, '2026-10-09 15:11:59.807', '2026-10-09 15:12:30.327', NULL);
 INSERT INTO public."Payment" (id, "orderId", provider, amount, status, "transactionRef", "providerData", "paidAt", "createdAt", "updatedAt", "refundedAt") VALUES ('cmv13s1ha000an3yk6swxgebd', 'cmv13s1ha0007n3ykct17ke3w', 'VNPAY', 23360000, 'FAILED', 'ODMV13S1H73B58-1791558675862', NULL, NULL, '2026-10-09 15:11:15.839', '2026-10-19 09:15:00.03', NULL);
 INSERT INTO public."Payment" (id, "orderId", provider, amount, status, "transactionRef", "providerData", "paidAt", "createdAt", "updatedAt", "refundedAt") VALUES ('cmv13sxxi000hn3ykztzl8t6f', 'cmv13sxxi000en3ykxox2xc5r', 'VNPAY', 32480000, 'FAILED', 'ODMV13SXXFB494-1791558717930', NULL, NULL, '2026-10-09 15:11:57.894', '2026-10-19 09:15:00.041', NULL);
+INSERT INTO public."Payment" (id, "orderId", provider, amount, status, "transactionRef", "providerData", "paidAt", "createdAt", "updatedAt", "refundedAt") VALUES ('cmw90p5ro000mn3voh2tg3ym3', 'cmw90p5ro000jn3voi2ju1eh4', 'VNPAY', 20810000, 'REFUNDED', 'ODMW90P5RND1D5-1794214014340', '{"vnp_Amount": "2081000000", "vnp_TxnRef": "ODMW90P5RND1D5-1794214014340", "vnp_PayDate": "20261109154843", "vnp_TmnCode": "SANDBOX_TMN", "vnp_BankCode": "NCB", "vnp_CardType": "ATM", "vnp_OrderInfo": "Thanh toan don hang ODMW90P5RND1D5", "vnp_BankTranNo": "VNP15730419", "vnp_SecureHash": "MASKED_BEFORE_PUBLISH", "vnp_ResponseCode": "00", "vnp_TransactionNo": "15730419", "vnp_TransactionStatus": "00"}', '2026-11-09 08:48:55.379', '2026-11-09 08:46:54.325', '2026-11-09 08:53:42.02', '2026-11-09 08:53:42.019');
 
 
 ALTER TABLE public."Payment" ENABLE TRIGGER ALL;
@@ -3113,5 +3116,5 @@ ALTER TABLE public."Warranty" ENABLE TRIGGER ALL;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict enYAFqxFJYjbeOiR4I6DYOxVKurlh8nt12SxiI4Naxwde5oo0lr3nPWxg45VRqQ
+\unrestrict YtAjEe4tepfaeirOcm4cbBTo7bgkasXfjbaF7g7axgHEZhdz9IB3p2PD4htFwsn
 

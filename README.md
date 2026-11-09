@@ -151,7 +151,17 @@ Chạy demo localhost thì **không cần sửa gì** trong `.env` — mọi bi�
 | Khách hàng | `customer@techshop.local` | `Customer@123` |
 
 Dữ liệu demo kèm theo: 6 danh mục · 150 sản phẩm · 306 máy trong kho · 299 ảnh · 5 nhóm quyền ·
-149 quy tắc giá thu cũ · 3 đơn hàng mẫu.
+149 quy tắc giá thu cũ · 4 đơn hàng mẫu.
+
+> **Dashboard quản trị hiển thị doanh thu 0₫ — đó là đúng dữ liệu, không phải lỗi.** Cả 4 đơn mẫu
+> đều ở trạng thái `CANCELLED`: ba đơn có thanh toán `FAILED`, một đơn đã thanh toán qua VNPay
+> sandbox rồi được hoàn tiền (`REFUNDED`). `totalRevenue` chỉ cộng các `Payment` có trạng thái
+> `PAID` nên kết quả bằng 0, và báo cáo doanh thu theo ngày cũng trống. Muốn thấy số liệu thì tự
+> đặt vài đơn rồi xác nhận thanh toán.
+>
+> Đơn VNPay đã hoàn tiền giữ lại `providerData` thật của cổng thanh toán (mã phản hồi `00`, ngân
+> hàng `NCB`) để minh họa một callback thành công, nhưng **`vnp_TmnCode` và `vnp_SecureHash` đã
+> được thay bằng giá trị giả** — đó là credential của merchant sandbox, không đưa lên repo công khai.
 
 > **Lưu ý:** admin và nhân viên **không xem được trang mua hàng** — đăng nhập hai tài khoản này sẽ
 > bị chuyển về `/admin`. Đây là thiết kế có chủ ý.
