@@ -1,4 +1,24 @@
+# Dependencies
 node_modules/
-dist/
+
+# Env & secrets — KHÔNG commit. Chỉ .env.example được lên repo.
 .env
+.env.*
+!.env.example
+*.local
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Giữ lại CÓ CHỦ ĐÍCH (đừng thêm vào đây):
+#   uploads/         — ảnh sản phẩm demo, thiếu nó thì web trống ảnh
+#   prisma/seed.sql  — dữ liệu demo, thiếu nó thì `npm run db:seed` vô nghĩa
