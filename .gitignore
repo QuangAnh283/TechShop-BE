@@ -11,6 +11,13 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# File nén — KHÔNG commit. `uploads.zip` là bản nén của chính thư mục `uploads/`,
+# mà 299 ảnh trong đó đã được git theo dõi từng file; commit vào là nhồi thêm ~5,6 MB
+# binary trùng lặp vào lịch sử repo và không xoá được bằng commit sau.
+*.zip
+*.rar
+*.7z
+
 # Logs
 *.log
 npm-debug.log*
