@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../../cache/cache.service';
 import { slugify } from '../../common/utils/slug.util';
@@ -65,15 +65,36 @@ export class BrandsService {
     return this.mapLogo(updated);
   }
 
+  /** Xoá thương hiệu. Kiểm trước sản phẩm đang tham chiếu — xem giải thích ở `categories.service.remove`. */
   async remove(id: string) {
-    await this.ensureExists(id);
+    const brand = await this.ensureExists(id);
+
+    // Không lọc `deletedAt`: sản phẩm xoá mềm vẫn giữ khoá ngoại nên vẫn chặn xoá.
+    const [products, visibleProducts] = await Promise.all([
+      this.prisma.product.count({ where: { brandId: id } }),
+      this.prisma.product.count({ where: { brandId: id, deletedAt: null } }),
+    ]);
+    if (products > 0) {
+      const hidden = products - visibleProducts;
+      const detail =
+        hidden > 0
+          ? `${products} sản phẩm (trong đó ${hidden} đã xóa nhưng vẫn giữ tham chiếu)`
+          : `${products} sản phẩm`;
+      throw new ConflictException(
+        `Không thể xóa thương hiệu “${brand.name}” vì còn ${detail} thuộc thương hiệu này. ` +
+          'Hãy chuyển chúng sang thương hiệu khác trước khi xóa.',
+      );
+    }
+
     await this.prisma.brand.delete({ where: { id } });
     await this.cache.del(BrandsService.CACHE_KEY);
     return { message: 'Đã xóa thương hiệu' };
   }
 
+  /** Trả về bản ghi để caller dùng được tên thương hiệu trong thông báo lỗi. */
   private async ensureExists(id: string) {
     const b = await this.prisma.brand.findUnique({ where: { id } });
     if (!b) throw new NotFoundException('Không tìm thấy thương hiệu');
+    return b;
   }
 }

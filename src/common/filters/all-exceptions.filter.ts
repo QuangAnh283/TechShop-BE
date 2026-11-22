@@ -54,11 +54,34 @@ export class AllExceptionsFilter implements ExceptionFilter {
           message = 'Lỗi truy vấn dữ liệu';
           error = 'Bad Request';
       }
-    } else if (exception instanceof Error) {
-      message = exception.message;
+    } else if (
+      exception instanceof Prisma.PrismaClientUnknownRequestError ||
+      exception instanceof Prisma.PrismaClientRustPanicError
+    ) {
+      // Prisma KHÔNG map được mọi lỗi DB. Ví dụ thật: xoá một `Category` còn sản phẩm →
+      // PostgreSQL ném **23001 `restrict_violation`**, nhưng Prisma chỉ map 23503 thành
+      // `P2003`, nên lỗi rơi xuống đây chứ không vào nhánh KnownRequestError ở trên.
+      // ⚠️ `exception.message` của Prisma chứa đường dẫn file nguồn trên máy chủ, tên
+      // bảng và tên ràng buộc — TUYỆT ĐỐI không trả ra client (xem `message` mặc định).
+      if (/\b23001\b|\b23503\b/.test(exception.message)) {
+        status = HttpStatus.CONFLICT;
+        message = 'Không thể xóa: dữ liệu này đang được bản ghi khác sử dụng';
+        error = 'Conflict';
+      }
+    } else if (exception instanceof Prisma.PrismaClientValidationError) {
+      status = HttpStatus.BAD_REQUEST;
+      message = 'Dữ liệu gửi lên không hợp lệ';
+      error = 'Bad Request';
     }
+    // Mọi `Error` còn lại giữ nguyên message mặc định 'Đã xảy ra lỗi hệ thống'.
+    // Trước đây nhánh này gán `message = exception.message` và đã làm lộ nguyên văn lỗi
+    // Prisma (kèm đường dẫn `...\src\modules\categories\categories.service.ts:63`) ra
+    // giao diện. Lỗi không phải `HttpException` là bug của server, không phải thông báo
+    // dành cho người dùng — chi tiết chỉ ghi vào log.
 
-    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+    // Log mọi lỗi KHÔNG phải HttpException: 4xx đã map (vd 409 ở trên) cũng đáng biết,
+    // vì nó nghĩa là có đường ghi chưa kiểm ràng buộc trước khi gọi DB.
+    if (!(exception instanceof HttpException)) {
       this.logger.error(exception instanceof Error ? exception.stack : String(exception));
     }
 
