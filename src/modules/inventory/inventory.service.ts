@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DeviceStatus } from '@prisma/client';
+import { CacheService } from '../../cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { can } from '../../common/authz/can';
 import { PERM } from '../../common/authz/permissions';
@@ -12,8 +13,18 @@ import { CreateWarehouseDto, ExportDeviceDto, ImportDeviceDto } from './dto/inve
 export class InventoryService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
     private readonly audit: AuditService,
   ) {}
+
+  /**
+   * Xoá cache danh sách sản phẩm. BẮT BUỘC sau nhập/xuất kho: `priceFrom` và "còn hàng"
+   * của một Product tính từ các `Device` đang `IN_STOCK`, nên máy mới nhập sẽ không hiện
+   * bán cho tới khi TTL 60s hết nếu thiếu lời gọi này.
+   */
+  private async invalidateProductCache() {
+    await this.cache.delByPattern('cache:products:*');
+  }
 
   /**
    * Nhập kho: tạo device + ghi giao dịch IMPORT (atomic).
@@ -47,6 +58,7 @@ export class InventoryService {
         sellingPrice: device.sellingPrice,
       },
     });
+    await this.invalidateProductCache();
     return device;
   }
 
@@ -59,8 +71,8 @@ export class InventoryService {
     const next = dto.status ?? device.status;
     assertDeviceTransition(device.status, next, { manual: true });
 
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.device.update({
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.device.update({
         where: { id: deviceId },
         data: { status: next },
       });
@@ -73,8 +85,10 @@ export class InventoryService {
           note: dto.note ?? 'Xuất kho',
         },
       });
-      return updated;
+      return row;
     });
+    await this.invalidateProductCache();
+    return updated;
   }
 
   history(deviceId: string) {

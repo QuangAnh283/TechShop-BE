@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { CacheService } from '../../cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { can } from '../../common/authz/can';
 import { PERM } from '../../common/authz/permissions';
@@ -24,14 +25,28 @@ import {
 export class DevicesService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
     private readonly audit: AuditService,
   ) {}
+
+  /**
+   * Xoá cache danh sách sản phẩm. BẮT BUỘC sau mọi thay đổi máy ảnh hưởng tới
+   * khả dụng hoặc giá: `priceFrom` và "còn hàng" của một Product được tính từ các
+   * `Device` đang `IN_STOCK`, nên đổi trạng thái / sửa giá / thêm / xoá máy đều làm
+   * danh sách sai cho tới khi TTL 60s hết. Thiếu lời gọi này thì đánh dấu một máy
+   * "Lỗi" rồi mở trang bán hàng vẫn thấy máy đó đang bán.
+   */
+  private async invalidateProductCache() {
+    await this.cache.delByPattern('cache:products:*');
+  }
 
   // `CreateDeviceDto` CỐ Ý không có `status`: máy mới luôn sinh ra ở `IN_STOCK` (default
   // của Prisma). Nếu sau này thêm `status` vào DTO thì phải chặn RESERVED/SOLD ở đây —
   // tạo thẳng một máy "đã bán" mà không có đơn hàng nào đứng sau là dữ liệu rác.
-  create(dto: CreateDeviceDto) {
-    return this.prisma.device.create({ data: dto });
+  async create(dto: CreateDeviceDto) {
+    const created = await this.prisma.device.create({ data: dto });
+    await this.invalidateProductCache();
+    return created;
   }
 
   async findAll(query: QueryDeviceDto) {
@@ -112,12 +127,14 @@ export class DevicesService {
         meta: { sellingPrice, purchasePrice },
       });
     }
+    await this.invalidateProductCache();
     return updated;
   }
 
   async remove(id: string) {
     await this.ensureExists(id);
     await this.prisma.device.update({ where: { id }, data: { deletedAt: new Date() } });
+    await this.invalidateProductCache();
     return { message: 'Đã xóa thiết bị' };
   }
 
