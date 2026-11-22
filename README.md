@@ -249,20 +249,20 @@ Base URL `http://localhost:3001/api/v1` · Swagger `http://localhost:3001/api/do
 |---|---|---|
 | auth | `POST /auth/register\|login\|refresh\|logout\|forgot-password\|verify-otp\|reset-password\|resend-verification`, `GET /auth/verify-email?token=` | public |
 | users | `GET/PATCH /users/me`, `POST /users/me/change-password` | đăng nhập |
-| categories | `GET /categories[/:idOrSlug]`; `POST/PATCH/DELETE` | đọc public / ghi `category.manage` |
-| brands | tương tự categories | đọc public / ghi `brand.manage` |
-| products | `GET /products` (lọc + phân trang + sắp xếp), `GET /products/:idOrSlug`; `POST/PATCH/DELETE`, `PUT /:id/specs` | đọc public / ghi `product.manage` |
+| categories | `GET /categories[/:idOrSlug]`; `POST/PATCH/DELETE` | đọc public / ghi `catalog.manage` |
+| brands | tương tự categories | đọc public / ghi `catalog.manage` |
+| products | `GET /products` (lọc + phân trang + sắp xếp), `GET /products/:idOrSlug`; `POST/PATCH/DELETE`, `PUT /:id/specs` | đọc public / ghi `product.manage` (xoá: `product.delete`) |
 | search | `GET /search?q=&category=&brandId=&minPrice=&maxPrice=&condition=&ram=&storage=&sort=` | public |
 | reviews | `GET /reviews?productId=`; `POST /reviews` (phải đã mua); `DELETE /:id` | đọc public / ghi đăng nhập |
 | addresses | `GET/POST /addresses`, `PATCH /:id`, `PATCH /:id/default`, `DELETE /:id` | đăng nhập |
 | cart | `GET /cart`, `POST /cart/items`, `DELETE /cart/items/:deviceId`, `DELETE /cart`, `GET /cart/validate` | đăng nhập |
-| orders | `POST /orders/checkout` (`VNPAY`\|`COD`), `GET /orders`, `GET /orders/all`, `GET /:id`, `PATCH /:id/status`, `PATCH /:id/cancel`, `POST /:id/refund` | khách: đơn của mình · quản trị: `order.manage` / `order.refund` |
+| orders | `POST /orders/checkout` (`VNPAY`\|`COD`), `GET /orders`, `GET /orders/all`, `GET /:id`, `PATCH /:id/status`, `PATCH /:id/cancel`, `POST /:id/refund` | khách: đơn của mình · quản trị: `order.read_all` (xem tất cả) · `order.process` (đổi trạng thái) · `order.cancel_any` · `order.refund` |
 | payments | `POST /payments/:orderId/vnpay/create`, `GET /payments/vnpay/return\|ipn` | create: đăng nhập · callback: public (verify HMAC) |
-| devices | `GET/POST/PATCH/DELETE /devices`, `PUT /:id/warranty`, `GET\|POST /:id/repairs` | `device.manage`, giá cần `price.update` |
-| inventory | `GET /inventory/summary`, `POST /inventory/import`, `POST /:deviceId/export`, `GET /:deviceId/history`, warehouses | `inventory.manage` (+ `price.update` khi nhập kho) |
+| devices | `GET/POST/PATCH/DELETE /devices`, `PUT /:id/warranty`, `GET\|POST /:id/repairs` | đọc `inventory.read` · ghi `inventory.manage` · giá cần thêm `price.update` · bảo hành `device.warranty` · sửa chữa `device.repair` |
+| inventory | `GET /inventory/summary`, `POST /inventory/import`, `POST /:deviceId/export`, `GET /:deviceId/history`, warehouses | đọc `inventory.read` · ghi `inventory.manage` (+ `price.update` khi nhập kho) · kho hàng `warehouse.manage` |
 | trade-in | `GET /trade-in/questions\|products`, `POST /trade-in/estimate`, `POST /trade-in/requests`, `GET /trade-in/requests[/:id]`, `POST /:id/accept\|reject` | estimate public · còn lại đăng nhập |
-| trade-in/manage | `POST /questions`, `DELETE /questions/:id`, `PUT /rules`, `GET /requests`, `PATCH /:id/assign\|status`, `POST /:id/inspect` | `tradein.manage` / `tradein.complete` |
-| media | `POST /media` (upload ảnh), `DELETE /media/:id` | `product.manage` |
+| trade-in/manage | `POST /questions`, `DELETE /questions/:id`, `PUT /rules`, `GET /requests`, `PATCH /:id/assign\|status`, `POST /:id/inspect` | `tradein.read` · `tradein.assign` · `tradein.inspect` · `tradein.config` (câu hỏi/giá gốc) · `tradein.complete` |
+| media | `POST /media` (upload ảnh), `DELETE /media/:id` | `media.upload` / `media.delete` |
 | admin | `GET /admin/dashboard`, `GET /admin/reports/revenue` | `report.read` |
 | admin/users | `GET/POST /admin/users`, `PATCH /:id/role`, `PATCH /:id/status` | ADMIN (`user.manage`) |
 | admin/phân quyền | `GET /admin/permissions`, `GET/POST/PATCH/DELETE /admin/permission-groups`, `PUT /admin/users/:id/group` | ADMIN (`permission.manage`) |
