@@ -104,7 +104,8 @@ export class PaymentsService {
           where: { id: payment.orderId },
           data: { status: OrderStatus.CONFIRMED },
         });
-        // A1: chốt bán hẳn -> device SOLD.
+        // A1: chốt bán hẳn -> device SOLD. Cạnh RESERVED -> SOLD của `DEVICE_TRANSITIONS`;
+        // chỉ callback đã thanh toán đi được đường này nên không cần assert.
         const deviceIds = order?.items.map((i) => i.deviceId) ?? [];
         if (deviceIds.length) {
           await tx.device.updateMany({

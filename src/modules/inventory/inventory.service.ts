@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { can } from '../../common/authz/can';
 import { PERM } from '../../common/authz/permissions';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
+import { assertDeviceTransition } from '../../common/utils/device-status.util';
 import { AuditService } from '../audit/audit.service';
 import { CreateWarehouseDto, ExportDeviceDto, ImportDeviceDto } from './dto/inventory.dto';
 
@@ -54,10 +55,14 @@ export class InventoryService {
     const device = await this.prisma.device.findFirst({ where: { id: deviceId, deletedAt: null } });
     if (!device) throw new NotFoundException('Không tìm thấy thiết bị');
 
+    // Xuất kho không truyền status thì giữ nguyên trạng thái (assert bỏ qua khi from === to).
+    const next = dto.status ?? device.status;
+    assertDeviceTransition(device.status, next, { manual: true });
+
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.device.update({
         where: { id: deviceId },
-        data: { status: dto.status ?? device.status },
+        data: { status: next },
       });
       await tx.inventoryTxn.create({
         data: {

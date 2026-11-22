@@ -321,6 +321,21 @@ khác nhưng hiện rõ "đã có người đặt mất" — không lặng lẽ 
 **Vòng đời máy khi bán.** checkout → `RESERVED` → (callback VNPay thành công | admin xác nhận đơn
 COD) → `SOLD`; huỷ đơn hoặc cron quá hạn → về `IN_STOCK`.
 
+**Trạng thái máy có state machine riêng** (`DEVICE_TRANSITIONS` + `assertDeviceTransition()` trong
+[`src/common/utils/device-status.util.ts`](src/common/utils/device-status.util.ts)). Năm trạng thái
+chia hai nhóm theo bản chất:
+
+| Nhóm | Trạng thái | Ai đặt |
+|---|---|---|
+| Vật lý | `IN_STOCK`, `INSPECTING`, `DEFECTIVE` | người dùng đặt tay, đổi tự do giữa ba cái |
+| Thuộc vòng đời đơn hàng | `RESERVED`, `SOLD` | **chỉ hệ thống** — là kết quả của đơn hàng |
+
+API sửa tay (`PATCH /devices/:id`, `POST /inventory/:id/export`) bị chặn chạm vào `RESERVED`/`SOLD`
+**cả chiều vào lẫn chiều ra**. Chiều ra mới là chỗ quan trọng: chống bán trùng chỉ dựa vào phép
+kiểm `status === IN_STOCK` lúc checkout, nó không kiểm "máy có đang thuộc đơn nào còn sống không" —
+nên sửa tay `RESERVED → IN_STOCK` lúc đơn còn treo sẽ cho khách thứ hai mua được cùng một máy vật
+lý. Muốn giải phóng máy thì **huỷ đơn**, đừng sửa trạng thái máy.
+
 **COD vs VNPay.** Đơn VNPay **chỉ được xác nhận bởi callback đã thanh toán** — admin không xác nhận
 tay được, nếu không đơn sẽ đi tới `DELIVERED` trong khi thanh toán còn kẹt `PENDING`. Đơn COD thì
 ngược lại: admin xác nhận, thu tiền khi giao.

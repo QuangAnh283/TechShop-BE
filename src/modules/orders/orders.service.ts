@@ -130,12 +130,15 @@ export class OrdersService {
       const total = subtotal + shippingFee;
 
       // A1: GIỮ CHỖ (RESERVED), chưa bán hẳn. Chỉ SOLD khi đã thanh toán.
+      // Cạnh IN_STOCK -> RESERVED của `DEVICE_TRANSITIONS`; luật được thực thi bằng phép
+      // kiểm `status !== IN_STOCK` ở trên, dưới khoá dòng (nguyên tử, chặt hơn assert).
       await tx.device.updateMany({
         where: { id: { in: deviceIds } },
         data: { status: DeviceStatus.RESERVED },
       });
 
-      // Tạo đơn + items (snapshot giá & tên). OrderItem.deviceId unique = lớp chặn bán trùng.
+      // Tạo đơn + items (snapshot giá & tên). Chống bán trùng nằm ở khoá dòng phía trên,
+      // KHÔNG còn ràng buộc unique trên OrderItem.deviceId (đã gỡ — xem CLAUDE.md).
       const order = await tx.order.create({
         data: {
           orderNumber: this.genOrderNumber(),

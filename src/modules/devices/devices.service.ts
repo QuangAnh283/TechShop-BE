@@ -10,6 +10,7 @@ import { can } from '../../common/authz/can';
 import { PERM } from '../../common/authz/permissions';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { paginate } from '../../common/dto/pagination.dto';
+import { assertDeviceTransition } from '../../common/utils/device-status.util';
 import { AuditService } from '../audit/audit.service';
 import {
   CreateDeviceDto,
@@ -26,6 +27,9 @@ export class DevicesService {
     private readonly audit: AuditService,
   ) {}
 
+  // `CreateDeviceDto` CỐ Ý không có `status`: máy mới luôn sinh ra ở `IN_STOCK` (default
+  // của Prisma). Nếu sau này thêm `status` vào DTO thì phải chặn RESERVED/SOLD ở đây —
+  // tạo thẳng một máy "đã bán" mà không có đơn hàng nào đứng sau là dữ liệu rác.
   create(dto: CreateDeviceDto) {
     return this.prisma.device.create({ data: dto });
   }
@@ -82,11 +86,16 @@ export class DevicesService {
    * ràng buộc theo FIELD phải nằm ở đây.
    */
   async update(id: string, dto: UpdateDeviceDto, user: AuthUser) {
-    await this.ensureExists(id);
+    const before = await this.ensureExists(id);
     const { sellingPrice, purchasePrice, ...rest } = dto;
     const touchesPrice = sellingPrice !== undefined || purchasePrice !== undefined;
     if (touchesPrice && !can(user, PERM.PRICE_UPDATE)) {
       throw new ForbiddenException('Bạn không được cấp quyền thay đổi giá');
+    }
+    // Đổi trạng thái phải hợp lệ theo bảng luật. `manual: true` vì bước chuyển do
+    // người dùng chỉ định -> chặn luôn RESERVED/SOLD (xem device-status.util.ts).
+    if (rest.status !== undefined) {
+      assertDeviceTransition(before.status, rest.status, { manual: true });
     }
     const updated = await this.prisma.device.update({
       where: { id },
@@ -141,8 +150,10 @@ export class DevicesService {
     });
   }
 
+  /** Trả về luôn bản ghi để caller dùng được trạng thái hiện tại mà không phải đọc lần hai. */
   private async ensureExists(id: string) {
     const d = await this.prisma.device.findFirst({ where: { id, deletedAt: null } });
     if (!d) throw new NotFoundException('Không tìm thấy thiết bị');
+    return d;
   }
 }
